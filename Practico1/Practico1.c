@@ -1,4 +1,4 @@
-//#include <wiringPi.h>
+// #include <wiringPi.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -6,27 +6,32 @@
 
 int main(void)
 {
+  clock_t start, stop;
+  int i = 0;
 
   time_t rawtime;
   struct tm *timeinfo;
 
-  int i = 0;
-  //wiringPiSetupGpio();
-  //pinMode(LED, OUTPUT);
+  // wiringPiSetupGpio();
+  // pinMode(LED, OUTPUT);
+  start = clock();
   while (1 > i)
   {
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-
-    if (timeinfo->tm_sec % 2 == 0)
+    if ((((double)(clock() - start) / (CLOCKS_PER_SEC))) <= 0.5)
     {
-    //  digitalWrite(LED, 1);
-      printf("Prendo\n");
+      //  digitalWrite(LED, 1);
+      printf("Prendo%d\n",timeinfo->tm_sec);
     }
     else
     {
-    //  digitalWrite(LED, 0);
-      printf("Apago\n");
+      //  digitalWrite(LED, 0);
+      printf("Apago%d\n",timeinfo->tm_sec);
+      if ((((double)(clock() - start) / (CLOCKS_PER_SEC))) >= 1)
+      {
+        start = clock();
+      }
     }
   }
 
