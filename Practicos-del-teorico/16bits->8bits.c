@@ -1,24 +1,43 @@
-
 #include <stdio.h>
-#include <stdint.h>
+#include <wiringPi.h>
+#include <softPwm.h>
+// Definimos el pin de salida que se utilizará para la señal PWM
+#define PWM_PIN 1
 
-int main()
-{
-    uint16_t var16bits = 0xABCD; // variable de 16 bits
-    uint8_t var8bits;            // variable de 8 bits
+int main(void) {
 
-    var8bits = (var16bits >> 8) & 0xFF; // convertir a 8 bits mediante desplazamiento y máscara
+    float grados;
+    grados = 0;
+    // Inicializamos la biblioteca WiringPi y configuramos el pin de salida como PWM
+   // wiringPiSetupGpio();
+   // pinMode(PWM_PIN, PWM_OUTPUT);
+    wiringPiSetup();
+    pinMode(PWM_PIN,PWM_OUTPUT);
+    digitalWrite(PWM_PIN,0);
+    softPwmCreate(PWM_PIN,0,200);   
+    // Configuramos la frecuencia de la señal PWM
+   // pwmSetMode(PWM_MODE_MS);
+   // pwmSetClock(384);
+   // pwmSetRange(1000);
+    float microsegundos;
 
-    // imprimir el resultado
-    printf("Valor de 16 bits: %x\n", var16bits);
-    printf("Valor de 8 bits: %x\n", var8bits);
+    while(1) {
+        printf("Incerte la cantidad de grados que debe girar el servo \n");
+        scanf("%f", &grados);
+        // Enviamos el pulso mínimo al servo
+        microsegundos = (((1/180)*grados)+1)*10
+printf("microsegundos %f\n",microsegundos);
+	softPwmWrite(PWM_PIN,(microsegundos));
+       // pwmWrite(PWM_PIN, microsegundos);
+
+        // Esperamos un tiempo (por ejemplo, 1 segundo)
+        delay(1000);
+    }
+
+    return 0;
 }
 
 /*
-En este ejemplo, la variable var16bits contiene el valor hexadecimal 0xABCD, que es un número de 16 bits.
-El operador de desplazamiento hacia la derecha ">>" se utiliza para desplazar el valor de 16 bits 8 bits hacia la derecha,
-lo que elimina los 8 bits menos significativos y mantiene los 8 bits más significativos.
-Luego, se aplica una máscara utilizando el operador "&" para mantener solo los 8 bits menos significativos.
-El resultado se almacena en la variable var8bits, que es una variable de 8 bits.
-Por último, se imprimen los valores originales y convertidos mediante la función printf().
+Este programa utiliza la biblioteca WiringPi para generar una señal PWM de 50 Hz en el pin 18 de la Raspberry Pi 3. 
+Luego, envía pulsos de ancho variable (entre 500 y 2500 microsegundos) al servo SG90 utilizando la función pwmWrite().
 */
