@@ -6,7 +6,7 @@
 
 int main(void)
 {
-  clock_t start; // Declaro variable para guardar los cloks
+  clock_t start; // Declaro variable para guardar los clocks
   int i = 0;     // Declaro variable hacer el while infinito
 
   wiringPiSetupGpio();  // Establezco conexion con los pines
