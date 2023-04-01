@@ -23,7 +23,7 @@ int main(void)
     {
         printf("Incerte la cantidad de grados que debe girar el servo \n");
         scanf("%f", &grados);
-        microsegundos = (((1 / 180) * grados) + 1) * 10;
+        microsegundos = (((1 / 180) * grados) + 1) * 10;    //Se hace la conversion de grados a milisegundos
         printf("microsegundos %f\n", microsegundos);
         softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
         delay(1000);
