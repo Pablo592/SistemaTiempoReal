@@ -6,7 +6,7 @@ int main()
 
     float num_float;
 
-    short num_short = pow(-2,10);
+    short num_short = pow(2,10);
 
     num_float =  (float)num_short;
 
