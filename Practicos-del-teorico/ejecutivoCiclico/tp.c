@@ -11,16 +11,16 @@ void *t3();
 
 int main(void)
 {
-    pthread_t tarea1;
-    pthread_t tarea2;
-    pthread_t tarea3;
+    pthread_t tarea1; //
+    pthread_t tarea2;       //Inicializo los hilos
+    pthread_t tarea3; //
 
-    pthread_create(&tarea1, NULL, t1, NULL);
-    pthread_create(&tarea2, NULL, t2, NULL);
-    pthread_create(&tarea3, NULL, t3, NULL);
-    pthread_join(tarea1, NULL);
-    pthread_join(tarea2, NULL);
-    pthread_join(tarea3, NULL);
+    pthread_create(&tarea1, NULL, t1, NULL); //
+    pthread_create(&tarea2, NULL, t2, NULL);    // Creo los hilos y establezco las funciones t1,t2 y t3 como las tareas que van a realizar
+    pthread_create(&tarea3, NULL, t3, NULL); //   
+    pthread_join(tarea1, NULL); //
+    pthread_join(tarea2, NULL);     // Espero a que el hilo finalice su ejecucion
+    pthread_join(tarea3, NULL); //
 
     return 0;
 }
