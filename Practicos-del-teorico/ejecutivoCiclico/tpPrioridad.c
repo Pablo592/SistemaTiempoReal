@@ -11,28 +11,31 @@ void *t3();
 
 int main(void)
 {
-    pthread_t tarea1;
-    pthread_t tarea2;
-    pthread_t tarea3;
+    pthread_t tarea1; //
+    pthread_t tarea2;       //Inicializo los hilos
+    pthread_t tarea3; //
 
-    struct sched_param params1, params2, params3;
+    struct sched_param params1, params2, params3;   //Creo estructuras para almacenar las prioridades
 
-    // Establecemos la prioridad del primer hilo en 50
-    params1.sched_priority = 50;
-    pthread_setschedparam(tarea1, SCHED_FIFO, &params1);
 
-    params2.sched_priority = 10;
-    pthread_setschedparam(tarea2, SCHED_FIFO, &params2);
+    pthread_create(&tarea1, NULL, t1, NULL); //
+    pthread_create(&tarea2, NULL, t2, NULL);    // Creo los hilos y establezco las funciones t1,t2 y t3 como las tareas que van a realizar
+    pthread_create(&tarea3, NULL, t3, NULL); //   
 
-    params3.sched_priority = 20;
-    pthread_setschedparam(tarea3, SCHED_FIFO, &params3);
+    // En GNU ubuntu la prioridad de los hilos va de 1 a 99
 
-    pthread_create(&tarea1, NULL, t1, NULL);
-    pthread_create(&tarea2, NULL, t2, NULL);
-    pthread_create(&tarea3, NULL, t3, NULL);
-    pthread_join(tarea1, NULL);
-    pthread_join(tarea2, NULL);
-    pthread_join(tarea3, NULL);
+    params1.sched_priority = 99;                        // Establezco la prioridad del hilo
+    pthread_setschedparam(tarea1, SCHED_RR, &params1);  //Declaro que van a utilizar Round Robin
+
+    params2.sched_priority = 1;                        // Establezco la prioridad del hilo
+    pthread_setschedparam(tarea2, SCHED_RR, &params2);  //Declaro que van a utilizar Round Robin
+
+    params3.sched_priority = 1;                       // Establezco la prioridad del hilo
+    pthread_setschedparam(tarea3, SCHED_RR, &params3); //Declaro que van a utilizar Round Robin
+
+    pthread_join(tarea1, NULL); //
+    pthread_join(tarea2, NULL);     // Espero a que el hilo finalice su ejecucion
+    pthread_join(tarea3, NULL); //
 
     return 0;
 }
