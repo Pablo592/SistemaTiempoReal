@@ -1,5 +1,4 @@
 #include <stdio.h> // Inicializo libreria para imprimir por pantalla
-#include <time.h>  // Inicializo libreria para calcular los tiempos
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
