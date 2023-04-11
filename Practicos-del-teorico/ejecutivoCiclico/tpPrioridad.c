@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <sched.h>
 #include <wiringPi.h> // Inicializo libreria para controlar los pines
 
