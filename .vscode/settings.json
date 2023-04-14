@@ -3,6 +3,8 @@
         "time.h": "c",
         "stdio.h": "c",
         "string.h": "c",
-        "pthread.h": "c"
+        "pthread.h": "c",
+        "unistd.h": "c",
+        "stdlib.h": "c"
     }
 }
