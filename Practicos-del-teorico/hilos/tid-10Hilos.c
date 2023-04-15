@@ -5,32 +5,32 @@
 #include <string.h>
 #include <unistd.h>
 
-void *t1(void* arg);
+void *t1(void *arg);
 
 int main(void)
 {
-    pthread_t hilos[10]; //
 
-for (int i = 0; i < 10; i++)
-{
-    pthread_create(&hilos[i], NULL, t1, &i); //
-    pthread_join(hilos[i], NULL);              //
-}
+    for (int i = 0; i < 10; i++)
+    {
+        pthread_t hilo;
+        pthread_create(&hilo, NULL, t1, &i);
+        pthread_detach(hilo);
+        pthread_join(hilo, NULL);
+    }
 
     return 0;
 }
 
-void *t1(void* arg)
+void *t1(void *arg)
 {
     pid_t pid;
     pthread_t tid;
-    int* numero = (int*)arg;
+    int *numero = (int *)arg;
 
     pid = getpid();
     tid = pthread_self();
 
-    printf("Hilo numero: %d\n",*numero);
-    printf("TID del hilo: %lu\n", (unsigned long)tid);
+    printf("El hilo numero: %d posee el TID: %lu\n", *numero, (unsigned long)tid);
     printf("\n");
 
     return NULL;
@@ -45,13 +45,16 @@ complementaria imprima por pantalla su PID y TID.
 
 /*
 thread: un puntero a una variable pthread_t que se utilizará para almacenar el identificador del hilo creado.
-attr: un puntero a una estructura pthread_attr_t que se utiliza para especificar los atributos del hilo creado. Si se pasa NULL, se utilizan los atributos predeterminados.
-start_routine: un puntero a la función que se ejecutará en el hilo creado. Esta función debe tomar un argumento void* y devolver un valor void*.
+attr: un puntero a una estructura pthread_attr_t que se utiliza para especificar los atributos del hilo creado.
+Si se pasa NULL, se utilizan los atributos predeterminados.
+start_routine: un puntero a la función que se ejecutará en el hilo creado. Esta función debe tomar un argumento void*
+y devolver un valor void*.
 arg: un puntero al argumento que se pasará a la función start_routine().
 
 */
 
 /*
 Cada proceso tiene un identificador de proceso (PID) único, que se utiliza para identificar el proceso en el sistema operativo.
-Cada hilo dentro de un proceso tiene su propio identificador de hilo (TID) único, que se utiliza para identificar el hilo en el sistema operativo. 
+Cada hilo dentro de un proceso tiene su propio identificador de hilo (TID) único, que se utiliza para
+identificar el hilo en el sistema operativo.
 */
