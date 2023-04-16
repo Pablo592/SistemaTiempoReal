@@ -5,12 +5,12 @@ int main(int argc, char** argv) {
 
 	pid_t ret = fork();
 
-	if (ret) {
+	if (ret) {								//proceso padre
 		for (size_t i = 0; i < 5; i++) {
 			printf("AAA\n");
 			usleep(1);
 		}
-	} else {
+	} else {								//proceso hijo
 		for (size_t i = 0; i < 5; i++) {
 			printf("BBBBBB\n");
 			usleep(1);

@@ -13,7 +13,7 @@ int main(void)
     for (int i = 0; i < 10; i++)
     {
         pthread_t hilo;
-        pthread_create(&hilo, NULL, t1, &i);
+        pthread_create(&hilo, NULL, t1,NULL);
         pthread_detach(hilo);
         pthread_join(hilo, NULL);
     }
@@ -25,12 +25,11 @@ void *t1(void *arg)
 {
     pid_t pid;
     pthread_t tid;
-    int *numero = (int *)arg;
 
     pid = getpid();
     tid = pthread_self();
 
-    printf("El hilo numero: %d posee el TID: %lu\n", *numero, (unsigned long)tid);
+    printf("El hilo posee el TID: %lu\n",(unsigned long)tid);
     printf("\n");
 
     return NULL;
