@@ -4,9 +4,12 @@
 #include <errno.h>
 
 int main(int argc, char** argv) {
-	char *args[] = {"./ejecutable",NULL};
-	execvp(args[0], args);
 
+
+	printf("SOY UN TROYANO \n");
+	sleep(2);
+	char *args[] = {"clear",0};
+	execvp("clear",args );
 	printf("execvp() failed. Error: %s\n", strerror(errno));
 
 	return 0;

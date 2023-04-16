@@ -5,6 +5,7 @@
         "string.h": "c",
         "pthread.h": "c",
         "unistd.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "errno.h": "c"
     }
 }
