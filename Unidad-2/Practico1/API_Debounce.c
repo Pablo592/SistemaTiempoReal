@@ -1,103 +1,41 @@
-/*
- * API_debound.c
- *
- *  Created on: 9 nov. 2021
- *      Author: luis
- */
-//#include "API_Debounce.h"
-#include "API_delay.h"
+#include <wiringPi.h> // Inicializo libreria para controlar los pines
+#include <stdio.h>	  // Inicializo libreria para imprimir por pantalla
+#include <time.h>	  // Inicializo libreria para calcular los tiempos
 
-static delay_t delay;
+#define LED 17 // El pin donde se conecta el Led
 
-#define DELAY_TIME 40
-
-void buttonReleased(void);
-void buttonPressed(void);
-// Función Inicializar MEF
-
-bool_t debounceInit(void)
+int main(void)
 {
+	clock_t start; // Declaro variable para guardar los clocks
+	int i = 0;	   // Declaro variable hacer el while infinito
 
-	/*Initialize Push Button */
-	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_GPIO);
-	BSP_LED_Init(LED1);
-	BSP_LED_Init(LED2);
-	BSP_LED_Init(LED3);
-	delayInit(&delay, DELAY_TIME);
-	debounceState = BUTTON_UP;
-	secuencia = false;
-	return true;
-}
+	wiringPiSetupGpio(); // Establezco conexion con los pines
+	pinMode(LED, INPUT); // Declaro al pin 17 como pin de salida
+	int b = 0;
 
-// Función Actualizar MEF
-void debounceUpdate(void)
-{
-	switch (debounceState)
+	while (1 > i)
 	{
-	case BUTTON_UP:
-		if (BSP_PB_GetState(BUTTON_USER))
+		if (1 == digitalRead(LED))
 		{
-			delayRead(&delay);
-			debounceState = BUTTON_FALLING;
+			if (start == NULL)
+				start = clock();
 		}
-
-		break;
-	case BUTTON_FALLING:
-		if (delayRead(&delay))
+		else
 		{
-			if (BSP_PB_GetState(BUTTON_USER))
+			double tiempoTranscurrido = (((double)(clock() - start) / (CLOCKS_PER_SEC)));
+			start = clock();
+			while (1 != digitalRead(LED))
 			{
-				buttonPressed();
-				debounceState = BUTTON_DOWN;
+				if ((((double)(clock() - start) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido) // Voy contando los clocks hasta que pase medio segundo
+				{
+					digitalWrite(LED, 1); // Prendo el Led
+					printf("Prendo\n");	  // Imprimo en pantalla
+				}
 			}
-			else
-			{
-				debounceState = BUTTON_UP;
-			}
+			digitalWrite(LED, 0);
+			start = NULL;
 		}
-
-		break;
-	case BUTTON_DOWN:
-		if (!BSP_PB_GetState(BUTTON_USER))
-		{
-			delayRead(&delay);
-			debounceState = BUTTON_RISING;
-		}
-
-		break;
-	case BUTTON_RISING:
-		if (delayRead(&delay))
-		{
-			if (!BSP_PB_GetState(BUTTON_USER))
-			{
-				buttonReleased();
-				debounceState = BUTTON_UP;
-			}
-			else
-			{
-				debounceState = BUTTON_DOWN;
-			}
-		}
-
-		break;
-	default:
-		debounceInit();
-		break;
 	}
-}
 
-void buttonReleased(void)
-{ // BSP_LED_Toggle(LED1);
-  // BSP_LED_Toggle(LED2);
-}
-void buttonPressed(void)
-{
-	// BSP_LED_Toggle(LED1);
-	// BSP_LED_Toggle(LED3);
-	if (secuencia)
-		secuencia = false;
-	else
-	{
-		secuencia = true;
-	}
+	return 0;
 }
