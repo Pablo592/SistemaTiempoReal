@@ -6,34 +6,35 @@
 
 int main(void)
 {
-	clock_t start; // Declaro variable para guardar los clocks
-	int i = 0;	   // Declaro variable hacer el while infinito
-
+	clock_t start_time; // Declaro variable para guardar los clocks
+	clock_t end_time; // Declaro variable para guardar los clocks
+	
 	wiringPiSetupGpio(); // Establezco conexion con los pines
 	pinMode(LED, INPUT); // Declaro al pin 17 como pin de salida
-	int b = 0;
+	int pulsador_activo_fl = 0;			 //seteo un flag
 
-	while (1 > i)
+	while (1)
 	{
-		if (1 == digitalRead(LED))
+		pulsador_activo_fl = digitalRead(LED);	// en 1 esta prendido, en 0 esta apagado
+		if (1 == pulsador_activo_fl)
 		{
-			if (start == NULL)
-				start = clock();
+			end_time = clock(); 					//tomo el ultimo tiempo
+			pulsador_activo_fl = digitalRead(LED);	//vuelvo a leer el pulsador
 		}
 		else
 		{
-			double tiempoTranscurrido = (((double)(clock() - start) / (CLOCKS_PER_SEC)));
-			start = clock();
+			double tiempoTranscurrido = (((double)(clock() - end_time) / (CLOCKS_PER_SEC)));
+
+			start_time = clock();
 			while (1 != digitalRead(LED))
 			{
-				if ((((double)(clock() - start) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido) // Voy contando los clocks hasta que pase medio segundo
+				if ((((double)(clock() - start_time) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido) // Voy contando los clocks hasta que pase medio segundo
 				{
 					digitalWrite(LED, 1); // Prendo el Led
 					printf("Prendo\n");	  // Imprimo en pantalla
 				}
 			}
 			digitalWrite(LED, 0);
-			start = NULL;
 		}
 	}
 
