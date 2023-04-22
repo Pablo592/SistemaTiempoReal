@@ -1,14 +1,16 @@
 #include <wiringPi.h> // Inicializo libreria para controlar los pines
 #include <stdio.h>	  // Inicializo libreria para imprimir por pantalla
 #include <time.h>	  // Inicializo libreria para calcular los tiempos
+#include <sys/time.h>
 
 #define PULSADOR 17 // El pin donde se conecta el PULSADOR
 #define LED 18		// El pin donde se conecta el LED
 
 int main(void)
 {
-	clock_t start_time_led;		 // Declaro variable para guardar los clocks
-	clock_t start_time_pulsador; // Declaro variable para guardar los clocks
+	struct timeval ti, tf;
+    double tiempo_pulsador;
+    double tiempo_inicio_led_prender;
 	int presiono = 0;
 
 	wiringPiSetupGpio();		// Establezco conexion con los pines
@@ -21,24 +23,32 @@ int main(void)
 		pulsador_activo_fl = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
 		if (pulsador_activo_fl && presiono == 0)
 		{
-			start_time_pulsador = clock(); // tomo el ultimo tiempo
-			presiono = 1;
+			gettimeofday(&ti, NULL);   // Instante inicial en que se presiona el pulsador
+			presiono = 1;				
+			printf("Presionando Pulsador\n"); 
 		}
 		else
 		{
-			double tiempoTranscurrido = (((double)(clock() - start_time_pulsador) / (CLOCKS_PER_SEC))); // Se calcula el delta del tiempo transcurrido entre que presiono y suelto el pulsador
-
-			start_time_led = clock();
 			if (presiono)
 			{
-				while (((((double)(clock() - start_time_led) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido))
+				gettimeofday(&tf, NULL);   // seteamos el tiempo final en que se termindo de presionar el pulsador
+				tiempo_pulsador= (tf.tv_sec - ti.tv_sec)*1000 + (tf.tv_usec - ti.tv_usec)/1000.0;	// Obtenemos el tiempo pulsado 
+				printf("Has tardado en pulsar : %g Seg\n", tiempo_pulsador/1000);
+
+				tiempo_inicio_led_prender = 0;
+				gettimeofday(&ti, NULL);   // Instante inicio del led a prender
+
+
+				while ((tiempo_inicio_led_prender < tiempo_pulsador))
 				{
-					digitalWrite(LED, 1); // Prendo el PULSADOR
-					printf("Prendo\n");	  // Imprimo en pantalla
+					digitalWrite(LED, 1); // Prendemos el LED
+					gettimeofday(&tf, NULL);   
+					tiempo_inicio_led_prender=(tf.tv_sec - ti.tv_sec)*1000 + (tf.tv_usec - ti.tv_usec)/1000.0; //Obtenemos el tiempo que lleva el led prendido
+					printf("Prendo led\n");
 				}
+				printf("El tiempo prendido del led es : %g milisegundos\n", tiempo_inicio_led_prender);
 				digitalWrite(LED, 0);
-				presiono == 0;
-				start_time_pulsador = clock(); // receteo el tiempo del pulsador
+				presiono = 0;
 			}
 		}
 	}
