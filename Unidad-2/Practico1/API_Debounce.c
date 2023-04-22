@@ -2,39 +2,44 @@
 #include <stdio.h>	  // Inicializo libreria para imprimir por pantalla
 #include <time.h>	  // Inicializo libreria para calcular los tiempos
 
-#define LED 17 // El pin donde se conecta el Led
+#define PULSADOR 17 // El pin donde se conecta el PULSADOR
+#define LED 18		// El pin donde se conecta el LED
 
 int main(void)
 {
-	clock_t start_time; // Declaro variable para guardar los clocks
-	clock_t end_time; // Declaro variable para guardar los clocks
-	
-	wiringPiSetupGpio(); // Establezco conexion con los pines
-	pinMode(LED, INPUT); // Declaro al pin 17 como pin de salida
-	int pulsador_activo_fl = 0;			 //seteo un flag
+	clock_t start_time_led;		 // Declaro variable para guardar los clocks
+	clock_t start_time_pulsador; // Declaro variable para guardar los clocks
+	int presiono = 0;
+
+	wiringPiSetupGpio();		// Establezco conexion con los pines
+	pinMode(PULSADOR, INPUT);	// Declaro al pin 17 como pin de entrada
+	pinMode(LED, OUTPUT);		// Declaro al pin 18 como pin de salida
+	int pulsador_activo_fl = 0; // seteo un flag
 
 	while (1)
 	{
-		pulsador_activo_fl = digitalRead(LED);	// en 1 esta prendido, en 0 esta apagado
-		if (1 == pulsador_activo_fl)
+		pulsador_activo_fl = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
+		if (pulsador_activo_fl && presiono == 0)
 		{
-			end_time = clock(); 					//tomo el ultimo tiempo
-			pulsador_activo_fl = digitalRead(LED);	//vuelvo a leer el pulsador
+			start_time_pulsador = clock(); // tomo el ultimo tiempo
+			presiono = 1;
 		}
 		else
 		{
-			double tiempoTranscurrido = (((double)(clock() - end_time) / (CLOCKS_PER_SEC)));
+			double tiempoTranscurrido = (((double)(clock() - start_time_pulsador) / (CLOCKS_PER_SEC))); // Se calcula el delta del tiempo transcurrido entre que presiono y suelto el pulsador
 
-			start_time = clock();
-			while (1 != digitalRead(LED))
+			start_time_led = clock();
+			if (presiono)
 			{
-				if ((((double)(clock() - start_time) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido) // Voy contando los clocks hasta que pase medio segundo
+				while (((((double)(clock() - start_time_led) / (CLOCKS_PER_SEC))) <= tiempoTranscurrido))
 				{
-					digitalWrite(LED, 1); // Prendo el Led
+					digitalWrite(LED, 1); // Prendo el PULSADOR
 					printf("Prendo\n");	  // Imprimo en pantalla
 				}
+				digitalWrite(LED, 0);
+				presiono == 0;
+				start_time_pulsador = clock(); // receteo el tiempo del pulsador
 			}
-			digitalWrite(LED, 0);
 		}
 	}
 
