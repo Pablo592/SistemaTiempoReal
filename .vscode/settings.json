@@ -6,6 +6,7 @@
         "pthread.h": "c",
         "unistd.h": "c",
         "stdlib.h": "c",
-        "errno.h": "c"
+        "errno.h": "c",
+        "i2c-dev.h": "c"
     }
 }
