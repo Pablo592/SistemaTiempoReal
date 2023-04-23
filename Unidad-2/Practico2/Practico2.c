@@ -15,7 +15,7 @@
 
 void *tareaA();
 void *tareaB();
-void *t3();
+void *tareaC();
 int file;
 float temperatura;
 int main(void)
@@ -29,7 +29,7 @@ int main(void)
 
     pthread_create(&tarea1, NULL, tareaA, NULL); //
     pthread_create(&tarea2, NULL, tareaB, NULL); // Creo los hilos y establezco las funciones t1,t2 y t3 como las tareas que van a realizar
-    pthread_create(&tarea3, NULL, t3, NULL); //
+    pthread_create(&tarea3, NULL, tareaC, NULL); //
     pthread_join(tarea1, NULL);                  //
     pthread_join(tarea2, NULL);                  // Espero a que el hilo finalice su ejecucion
     pthread_join(tarea3, NULL); //
@@ -84,7 +84,7 @@ void *tareaA()
      return NULL;
  }
 
-void *t3()
+void *tareaC()
 {
     clock_t inicio = clock(); // Guardo la cantidad de clocks transcurridos
     struct timeval ti, tf;
