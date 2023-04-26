@@ -96,7 +96,7 @@ void *tareaC()
 
         if (tiempo >= 60) // cuento 500 milisegundos
         {
-            if ((temperatura > 30) || (temperatura < 25))
+            if ((temperatura > 30))
             {
 
                 gettimeofday(&ti, NULL);
@@ -106,6 +106,9 @@ void *tareaC()
 
                     printf("%f\n",((tf.tv_sec - ti.tv_sec)*1000 + (tf.tv_usec - ti.tv_usec)/1000.0));
                     gettimeofday(&tf, NULL);
+                    
+                    if(temperatura < 25)
+                    break;
                 }
             }
             inicio = clock();
