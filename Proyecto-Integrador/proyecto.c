@@ -35,11 +35,11 @@ struct parameters
 int shared_fd_parameters = -1;
 struct parameters *ptr_parameters = NULL;
 #define SH_SIZE_TIEMPO_PULSADO 1
+int init_shared_resource();
 ///////////////////////////////////////
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
-int init_shared_resource();
 
 int main(void)
 {
