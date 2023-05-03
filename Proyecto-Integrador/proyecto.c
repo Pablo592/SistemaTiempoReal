@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include <sys/stat.h> //para obtener la configuracion del archivo
 
 void *lectorDeArchivo();
 void *monitoreaSensorHumedadTemperatura();
@@ -52,6 +53,7 @@ int init_shared_resource();
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
+char archivoNombre[20] = "riego.config";
 
 int main(void)
 {
@@ -65,26 +67,26 @@ int main(void)
     pthread_t hilo6; //
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
-    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-    pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
-    pthread_create(&hilo4, NULL, activaServomotor, NULL); //
+    // pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
+    // pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
+    // pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
-    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
-    pthread_join(hilo1, NULL);                             //
-    pthread_join(hilo2, NULL);                             // Espero a que el hilo finalice su ejecucion
-    pthread_join(hilo3, NULL);                             //
-    pthread_join(hilo4, NULL);                             //
-    pthread_join(hilo5, NULL);                             // Espero a que el hilo finalice su ejecucion
-    pthread_join(hilo6, NULL);                             //
+    // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
+    pthread_join(hilo1, NULL); //
+    // pthread_join(hilo2, NULL);                             // Espero a que el hilo finalice su ejecucion
+    // pthread_join(hilo3, NULL);                             //
+    // pthread_join(hilo4, NULL);                             //
+    pthread_join(hilo5, NULL); // Espero a que el hilo finalice su ejecucion
+    // pthread_join(hilo6, NULL);                             //
 
     return 0;
 }
 
 void *lectorDeArchivo()
 {
-    FILE *file_pointer;                        // Declaro un puntero que va a ir apuntando al archivo fila por fila
-    char str[150];                             // Declaro una variable que va a contener las filas del archivo
-    file_pointer = fopen("riego.config", "r"); // Apunto el puntero al inicio del archivo
+    FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
+    char str[150];                            // Declaro una variable que va a contener las filas del archivo
+    file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
 
     if (file_pointer == NULL)
     {
@@ -206,6 +208,32 @@ void *activaServomotor()
 
 void *monitoreaCambiosArchivo()
 {
+    char *filename = archivoNombre;
+    bool bandera_upd = false;
+    char *last_fecha;
+    while (1)
+    {
+        
+        struct stat st;
+        
+
+        if (stat(filename, &st) == 0)
+        {            
+            if (last_fecha != ctime(&st.st_mtime)){
+                printf("Archivo Modificado");
+                bandera_upd = false;
+                sleep(2);
+                last_fecha = ctime(&st.st_mtime);
+                //printf("Fecha %s",  ctime(&st.st_mtime));
+            }
+          
+        }
+        else
+        {
+            printf("No se pudo obtener información del archivo.\n");
+        }
+    }
+
     return NULL;
 }
 
