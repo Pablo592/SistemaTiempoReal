@@ -1,3 +1,4 @@
+#include <wiringPi.h>
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
@@ -31,12 +32,23 @@ struct parameters
     int duracionMinutosAlarma;
 };
 
+struct sensor
+{
+    double temperatura;
+    double humedad;
+};
+
 ///////////Shared memory////////
 int shared_fd_parameters = -1;
+int shared_fd_sensor = -1;
 struct parameters *ptr_parameters = NULL;
-#define SH_SIZE_TIEMPO_PULSADO 1
+struct sensor *ptr_sensor = NULL;
+#define SH_SIZE_PARAMETERS 1
+#define SH_SIZE_SENSOR 1
 int init_shared_resource();
 ///////////////////////////////////////
+
+#define AHT10_ADDRESS 0x38 // AHT10 I2C address
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
@@ -92,7 +104,7 @@ void *lectorDeArchivo()
 
             if (starts_with(str, "TempMax")) // Asigno los valores a las variables correspondientes
             {
-                ptr_parameters->tempMax = atoi(ptr); // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
+                ptr_parameters->tempMax = atoi(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
                 printf("'%d'\n", ptr_parameters->tempMax); // Imprimo el valor ajodado en la memoria compartida
             }
             else if (starts_with(str, "HumMin"))
@@ -134,6 +146,45 @@ void *lectorDeArchivo()
 
 void *monitoreaSensorHumedadTemperatura()
 {
+    wiringPiSetupGpio();
+    int file;
+    char *filename = "/dev/i2c-1";           // I2C bus device file
+    if ((file = open(filename, O_RDWR)) < 0) // Verifico la conexion con la interfaz I2C
+    {
+        printf("Failed to open I2C bus %s\n", filename);
+        exit(1);
+    }
+
+    if (ioctl(file, I2C_SLAVE, AHT10_ADDRESS) < 0) // Verifico la conexion con el sensor AHT10
+    {
+        printf("Failed to select AHT10 sensor\n");
+        exit(1);
+    }
+
+    // Send command to measure temperature and humidity
+    char command[3] = {0xAC, 0x33, 0x00}; // Busco en memoria la humedad y temperatura detectada por el sensor
+
+    float cur_temp, ctmp;
+    while (1) // El sensor recopila datos sin parar
+    {
+        write(file, command, 3);
+        usleep(50000); // Se espera un tiempo a que las mediciones puedan completarse (50ms)
+        char data[6];
+        read(file, data, 6);
+
+        cur_temp = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]);
+        cur_temp = ((cur_temp * 200) / 1048576) - 50;
+        printf("Temperature: %2.2f\n", cur_temp); // Se imprime la temperatura monitoreada por consola
+        ctmp = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
+        ctmp = ctmp * 100 / 1048576;
+        printf("Humidity: %1.f %\n", ctmp); // Se imprime la humedad monitoreada por consola
+
+        ptr_sensor->temperatura = cur_temp;
+        ptr_sensor->humedad = ctmp;
+    }
+
+    close(file);
+
     return NULL;
 }
 
@@ -173,27 +224,46 @@ int init_shared_resource()
 {
 
     shared_fd_parameters = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
+    shared_fd_sensor = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
 
     if (shared_fd_parameters < 0)
     {
-        fprintf(stderr, "ERROR: Failed to create shared memory TIEMPO_PULSADO: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR: Failed to create shared memory PARAMETERS: %s\n", strerror(errno));
+        exit(1);
+    }
+    if (shared_fd_sensor < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create shared memory SENSOR: %s\n", strerror(errno));
         exit(1);
     }
     fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_parameters);
+    fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_sensor);
 
-    if (ftruncate(shared_fd_parameters, SH_SIZE_TIEMPO_PULSADO * sizeof(struct parameters)) < 0)
+    if (ftruncate(shared_fd_parameters, SH_SIZE_PARAMETERS * sizeof(struct parameters)) < 0)
+    {
+        fprintf(stderr, "ERROR: Truncation failed: %s\n", strerror(errno));
+        return 1;
+    }
+    if (ftruncate(shared_fd_sensor, SH_SIZE_SENSOR * sizeof(struct sensor)) < 0)
     {
         fprintf(stderr, "ERROR: Truncation failed: %s\n", strerror(errno));
         return 1;
     }
 
-    void *map_parameters = mmap(0, SH_SIZE_TIEMPO_PULSADO, PROT_WRITE, MAP_SHARED, shared_fd_parameters, 0);
+    void *map_parameters = mmap(0, SH_SIZE_PARAMETERS, PROT_WRITE, MAP_SHARED, shared_fd_parameters, 0);
+    void *map_sensor = mmap(0, SH_SIZE_SENSOR, PROT_WRITE, MAP_SHARED, shared_fd_sensor, 0);
 
     if (map_parameters == MAP_FAILED)
     {
         fprintf(stderr, "ERROR: Mapping failed: %s\n", strerror(errno));
         return 1;
     }
+    if (map_sensor == MAP_FAILED)
+    {
+        fprintf(stderr, "ERROR: Mapping failed: %s\n", strerror(errno));
+        return 1;
+    }
 
     ptr_parameters = (struct parameters *)map_parameters;
+    ptr_sensor = (struct sensor *)map_sensor;
 }

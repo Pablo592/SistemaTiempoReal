@@ -9,6 +9,12 @@
         "errno.h": "c",
         "i2c-dev.h": "c",
         "iosfwd": "c",
-        "ioctl.h": "c"
+        "ioctl.h": "c",
+        "*.tcc": "c",
+        "complex": "c",
+        "list": "c",
+        "random": "c",
+        "functional": "c",
+        "streambuf": "c"
     }
 }
