@@ -23,8 +23,8 @@ void *monitoreaPulsador();
 
 struct parameters
 {
-    int tempMax;
-    int humMin;
+    double tempMax;
+    double humMin;
     int horaRiego;
     int minutoRiego;
     int duracionMinutosRiego;
@@ -94,9 +94,6 @@ void *lectorDeArchivo()
 
     while (fgets(str, 150, file_pointer) != NULL) // Voy recorriendo el archivo fila por fila
     {
-        if (starts_with(str, "FIN_FILE")) // Cuando llego al final del archivo dejo de leer
-            break;
-
         if (!starts_with(str, "#")) // Ignoro el instructivo del formato
         {
             char *ptr = strtok(str, ":"); // La posicion 0 del split(":")
@@ -104,13 +101,13 @@ void *lectorDeArchivo()
 
             if (starts_with(str, "TempMax")) // Asigno los valores a las variables correspondientes
             {
-                ptr_parameters->tempMax = atoi(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
-                printf("'%d'\n", ptr_parameters->tempMax); // Imprimo el valor ajodado en la memoria compartida
+                ptr_parameters->tempMax = atof(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
+                printf("'%f'\n", ptr_parameters->tempMax); // Imprimo el valor ajodado en la memoria compartida
             }
             else if (starts_with(str, "HumMin"))
             {
-                ptr_parameters->humMin = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->humMin);
+                ptr_parameters->humMin = atof(ptr);
+                printf("'%f'\n", ptr_parameters->humMin);
             }
             else if (starts_with(str, "HoraRiego"))
             {
