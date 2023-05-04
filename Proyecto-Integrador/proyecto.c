@@ -213,20 +213,24 @@ void *monitoreaCambiosArchivo()
     char *last_fecha;
     while (1)
     {
-        
         struct stat st;
-        
+        if (stat(filename, &st) == 0){
+            char *current_fecha = ctime(&st.st_mtime);
+            current_fecha[strlen(current_fecha) - 1] = '\0';
+            printf("current fecha: %s\n", current_fecha);
+            sleep(2);
+            printf("ultima fecha: %s\n", last_fecha);
+            
+            //if (strcmp(last_fecha, current_fecha) != 0) {
+            //    printf("El archivo %s ha sido modificado. Fecha de modificación: %s\n", filename, current_fecha);
+            //    last_fecha = current_fecha;
+            //}
 
-        if (stat(filename, &st) == 0)
-        {            
-            if (last_fecha != ctime(&st.st_mtime)){
+            if (last_fecha != current_fecha){
                 printf("Archivo Modificado");
-                bandera_upd = false;
                 sleep(2);
-                last_fecha = ctime(&st.st_mtime);
-                //printf("Fecha %s",  ctime(&st.st_mtime));
+                last_fecha = current_fecha;
             }
-          
         }
         else
         {
