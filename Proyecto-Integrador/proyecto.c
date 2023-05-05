@@ -230,7 +230,7 @@ void *monitoreaCambiosArchivo()
     while (1)
     {
       
-      //  sleep(1);
+        sleep(1);
 
         if (stat(filename, &file_stat) == -1)
         {
