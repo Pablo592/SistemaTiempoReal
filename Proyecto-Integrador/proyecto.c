@@ -53,6 +53,7 @@ int init_shared_resource();
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
+bool comparaStr(char entrada[], char modelo[]);
 char archivoNombre[20] = "riego.config";
 
 int main(void)
@@ -209,32 +210,57 @@ void *activaServomotor()
 void *monitoreaCambiosArchivo()
 {
     char *filename = archivoNombre;
-    bool bandera_upd = false;
-    char *last_fecha;
+    struct stat file_stat;
+
+    // Llama a la función stat() para obtener la información del archivo
+    if (stat(filename, &file_stat) == -1)
+    {
+        printf("Error al obtener la información del archivo.\n");
+    }
+
+    // Extrae la fecha de modificación de la estructura stat
+    time_t mod_time = file_stat.st_mtime;
+    struct tm *time_info = localtime(&mod_time);
+
+    // Formatea y muestra la fecha de modificación
+    char fecha_anterior[50];
+    strftime(fecha_anterior, sizeof(fecha_anterior), "%Y-%m-%d %H:%M:%S", time_info);
+    // printf("La última modificación de %s fue el %s.\n", filename, fecha_anterior);
+
     while (1)
     {
-        struct stat st;
-        if (stat(filename, &st) == 0){
-            char *current_fecha = ctime(&st.st_mtime);
-            current_fecha[strlen(current_fecha) - 1] = '\0';
-            printf("current fecha: %s\n", current_fecha);
-            sleep(2);
-            printf("ultima fecha: %s\n", last_fecha);
-            
-            //if (strcmp(last_fecha, current_fecha) != 0) {
-            //    printf("El archivo %s ha sido modificado. Fecha de modificación: %s\n", filename, current_fecha);
-            //    last_fecha = current_fecha;
-            //}
+      
+      //  sleep(1);
 
-            if (last_fecha != current_fecha){
-                printf("Archivo Modificado");
-                sleep(2);
-                last_fecha = current_fecha;
-            }
-        }
-        else
+        if (stat(filename, &file_stat) == -1)
         {
-            printf("No se pudo obtener información del archivo.\n");
+            printf("Error al obtener la información del archivo.\n");
+        }
+
+        // Extrae la fecha de modificación de la estructura stat
+        time_t mod_times = file_stat.st_mtime;
+        struct tm *time_info = localtime(&mod_times);
+
+        // Formatea y muestra la fecha de modificación
+        char fecha_actual[50];
+        strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
+        // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
+
+        printf("La última modificación fue el %s.\n", fecha_anterior);
+        printf("La Actual modificación fue el %s.\n", fecha_actual);
+
+        for (size_t i = 0; i < strlen(fecha_actual); i++)
+        {
+            if (fecha_anterior[i] != fecha_actual[i])
+            {
+                printf("Archivo modificado \n");
+
+                for (size_t i = 0; i < strlen(fecha_actual); i++)
+                {
+                    fecha_anterior[i] = fecha_actual[i];
+                }
+                break;
+            }
         }
     }
 
@@ -256,6 +282,19 @@ bool starts_with(const char *str, const char *prefix)
         return false;
     }
     return strncmp(str, prefix, prefix_len) == 0;
+}
+
+bool comparaStr(char entrada[], char modelo[])
+{
+    int ind = 0;
+
+    while (entrada[ind] != '\0' && modelo[ind] != '\0' && entrada[ind] == modelo[ind])
+        ind++;
+
+    if (entrada[ind] != '\0' || modelo[ind] != '\0')
+        return false;
+
+    return true;
 }
 
 int init_shared_resource()
