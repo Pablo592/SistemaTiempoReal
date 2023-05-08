@@ -246,8 +246,8 @@ void *monitoreaCambiosArchivo()
         strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
         // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
 
-        printf("La última modificación fue el %s.\n", fecha_anterior);
-        printf("La Actual modificación fue el %s.\n", fecha_actual);
+        //printf("La última modificación fue el %s.\n", fecha_anterior);
+        //printf("La Actual modificación fue el %s.\n", fecha_actual);
 
         for (size_t i = 0; i < strlen(fecha_actual); i++)
         {
