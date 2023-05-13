@@ -50,11 +50,13 @@ void init_shared_resource() {
 
 
 
-int* ptr_fecha_hora = NULL;
+char* ptr_fecha_hora = NULL;
 char* ptr_name = NULL;
 double* ptr_tiempo_pulsado = NULL;
 
 double tiempoPulsado;
+
+
 
 int main(void)
 {
@@ -93,7 +95,7 @@ int main(void)
 	}
 
     ptr_name = (char*)map_name;
-    ptr_fecha_hora = (int*)map_fecha_hora;
+    ptr_fecha_hora = (char*)map_fecha_hora;
     ptr_tiempo_pulsado = (double*) map_tiempo_pulsado;
 
 
@@ -103,8 +105,8 @@ int main(void)
 
 
      int pulsador_activo_fl;
-    printf("Introduzca 1 = PULSADO, 0 <> NO PULSADO: ");
-    scanf("%d", &pulsador_activo_fl);
+    //printf("Introduzca 1 = PULSADO, 0 <> NO PULSADO: ");
+    //scanf("%d", &pulsador_activo_fl);
 
     if (ret)
     {
@@ -122,7 +124,7 @@ int main(void)
        int pulsador_activo_fl = 0; // seteo un flag
         while (1)
         {
-            printf("Introduzca 1 = PULSADO, 0 <> NO PULSADO: ");
+            printf("Introduzca 1 = PULSADO, 0 <> NO PULSADO:\n");
             scanf("%d", &pulsador_activo_fl);
             /*pulsador_activo_fl = digitalRead(PULSADOR);*/ // en 1 esta prendido, en 0 esta apagado
             if (pulsador_activo_fl && presiono == 0)
@@ -130,6 +132,7 @@ int main(void)
                 gettimeofday(&ti, NULL); // Instante inicial en que se presiona el pulsador
                 presiono = 1;
                 printf("Presionando Pulsador\n");
+                pulsador_activo_fl = 1;
             }
             else
             {
@@ -141,9 +144,16 @@ int main(void)
 
                     tiempoPulsado = tiempo_pulsador / 1000;
                     presiono = 0;
-                    ptr_name = "BOTON PRESIONADO";
-                    //gettimeofday(ptr_fecha_hora, NULL);   
+                    
+                    time_t t = time(NULL);
+                    struct tm tm = *localtime(&t);
+                    //printf("%02d:%02d:%02d  %d-%02d-%02d\n",tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon + 1,tm.tm_year + 1900);
+                    
+
                     *ptr_tiempo_pulsado = tiempoPulsado;
+                   // char result[100]; // 
+                   // *ptr_fecha_hora = sprintf(result,"%02d:%02d:%02d  %d-%02d-%02d",tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon + 1,tm.tm_year + 1900);
+                   // ptr_name = "BOTON 1";
                 }
             }
         }
@@ -151,18 +161,22 @@ int main(void)
     else
     {
          double tiempo_inicio_led_prender;
+         //printf("%lf",*ptr_tiempo_pulsado);
+
         for (;;)
         {
             tiempo_inicio_led_prender = 0;
             gettimeofday(&ti, NULL); // Instante inicio del led a prender
-            
-           
-
+            //if(*ptr_tiempo_pulsado >0)
+            //fprintf(stdout, "El tiempo pulsado %f.\n", *ptr_tiempo_pulsado);
             while ((tiempo_inicio_led_prender < *ptr_tiempo_pulsado))
             {
                 /*digitalWrite(LED, 0);*/
                 gettimeofday(&tf, NULL);
                 tiempo_inicio_led_prender = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0; // Obtenemos el tiempo que lleva el led prendido
+                fprintf(stdout, "El tiempo pulsado %f.\n", *ptr_tiempo_pulsado);
+                //fprintf(stdout, "La fecha es: %d.\n", *ptr_fecha_hora);
+                //fprintf(stdout, "El nombre del pulsador %d.\n", *ptr_name);
             }
             /*digitalWrite(LED, 1);*/ // Prendemos el LED
             //printf("El periodo del LED es de : %g milisegundos\n", tiempo_inicio_led_prender);
