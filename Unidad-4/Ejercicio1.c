@@ -10,10 +10,11 @@
 
 #define MAX_LUGARES 10
 #define LED_VERDE 17 // Declaro el pin 17 para el led Verde
-#define LED_ROJO 16 // declaro el ping 16 para el led Rojo
+#define LED_ROJO 16  // declaro el ping 16 para el led Rojo
 
 // Estructura para almacenar los datos de un vehículo
-typedef struct {
+typedef struct
+{
     char patente[8];
     char fecha[9];
     char hora[6];
@@ -26,21 +27,23 @@ sem_t sem_vehiculos;
 sem_t sem_impresion;
 mqd_t cola_mq;
 
-
 // Función para generar una patente aleatoria
-void generarPatente(char* patente) {
+void generarPatente(char *patente)
+{
     static const char caracteres[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     int i;
-    for (i = 0; i < 7; i++) {
+    for (i = 0; i < 7; i++)
+    {
         patente[i] = caracteres[rand() % (sizeof(caracteres) - 1)];
     }
     patente[7] = '\0';
 }
 
 // Función para obtener la fecha actual en formato DD/MM/AA
-void obtenerFechaActual(char* fecha) {
+void obtenerFechaActual(char *fecha)
+{
     time_t rawtime;
-    struct tm* timeinfo;
+    struct tm *timeinfo;
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
@@ -49,9 +52,10 @@ void obtenerFechaActual(char* fecha) {
 }
 
 // Función para obtener la hora actual en formato HH:MM
-void obtenerHoraActual(char* hora) {
+void obtenerHoraActual(char *hora)
+{
     time_t rawtime;
-    struct tm* timeinfo;
+    struct tm *timeinfo;
 
     time(&rawtime);
     timeinfo = localtime(&rawtime);
@@ -60,22 +64,25 @@ void obtenerHoraActual(char* hora) {
 }
 
 // Función para enviar un mensaje a la cola
-void enviarMensajeCola(Vehiculo vehiculo) {
+void enviarMensajeCola(Vehiculo vehiculo)
+{
     char mensaje[256];
-    //almaceno el string dentro de una arreglo de caracteres
+    // almaceno el string dentro de una arreglo de caracteres
     sprintf(mensaje, "PATENTE: %s\nFECHA: %s\nHORA: %s\nINGRESO: %c \nCantidadOcupada: %d\n ",
-            vehiculo.patente, vehiculo.fecha, vehiculo.hora, vehiculo.puerta,vehiculos_dentro);
-    mq_send(cola_mq, mensaje, strlen(mensaje) + 1, 0);  //envio del msj
+            vehiculo.patente, vehiculo.fecha, vehiculo.hora, vehiculo.puerta, vehiculos_dentro);
+    mq_send(cola_mq, mensaje, strlen(mensaje) + 1, 0); // envio del msj
 }
 
-
 // Función para el hilo de ingreso A
-void* ingresoA(void* arg) {
-    while (1) {
+void *ingresoA(void *arg)
+{
+    while (1)
+    {
         sem_wait(&sem_vehiculos);
-        if (vehiculos_dentro < MAX_LUGARES) {
+        if (vehiculos_dentro < MAX_LUGARES)
+        {
             digitalWrite(LED_VERDE, 1); // Prendo el Led
-            //printf("Prendo\n");   // Imprimo en pantalla
+            // printf("Prendo\n");   // Imprimo en pantalla
             vehiculos_dentro++;
             sem_post(&sem_vehiculos);
 
@@ -94,14 +101,15 @@ void* ingresoA(void* arg) {
             // Enviar mensaje a la cola
             enviarMensajeCola(vehiculo);
             digitalWrite(LED_VERDE, 0); // APAGO el Led
-        } else {
+        }
+        else
+        {
             digitalWrite(LED_ROJO, 1); // Prendo el Led
             sleep(2);
             sem_post(&sem_vehiculos);
             printf("Plaza llena para A: LED rojo\n");
-            digitalWrite(LED_ROJO,0); // Prendo el Led
+            digitalWrite(LED_ROJO, 0); // Prendo el Led
         }
-            
 
         sleep(2);
     }
@@ -109,17 +117,20 @@ void* ingresoA(void* arg) {
 }
 
 // Función para el hilo de ingreso B
-void* ingresoB(void* arg) {
-    while (1) {
-        sem_wait(&sem_vehiculos);                  //bloqueo esta porcion de codigo, para que solo este hilo pueda acceder
-        if (vehiculos_dentro < MAX_LUGARES) {
-            digitalWrite(LED_VERDE, 1);             // Prendo el Led
+void *ingresoB(void *arg)
+{
+    while (1)
+    {
+        sem_wait(&sem_vehiculos); // bloqueo esta porcion de codigo, para que solo este hilo pueda acceder
+        if (vehiculos_dentro < MAX_LUGARES)
+        {
+            digitalWrite(LED_VERDE, 1); // Prendo el Led
             vehiculos_dentro++;
-            sem_post(&sem_vehiculos);           //desbloqueo el semaforo si enciendo el led verde
+            sem_post(&sem_vehiculos); // desbloqueo el semaforo si enciendo el led verde
 
             // Mantengo el led verde prendido durante 2 seg
             sleep(2);
-            //printf("Autorización de ingreso para B: LED verde\n");
+            // printf("Autorización de ingreso para B: LED verde\n");
 
             // Generar datos del vehículo
             Vehiculo vehiculo;
@@ -131,12 +142,14 @@ void* ingresoB(void* arg) {
             // Enviar mensaje a la cola para que el "hilo d" lo lea
             enviarMensajeCola(vehiculo);
             digitalWrite(LED_VERDE, 0); // apago el Led
-        } else {
+        }
+        else
+        {
             digitalWrite(LED_ROJO, 1); // Prendo el Led
             sleep(2);
-            sem_post(&sem_vehiculos);           //desbloqueo el semaforo si enciendo el led verde
-            //printf("Plaza llena para B: LED rojo\n");
-            digitalWrite(LED_ROJO,0); // Apago el Led Rojo
+            sem_post(&sem_vehiculos); // desbloqueo el semaforo si enciendo el led verde
+            // printf("Plaza llena para B: LED rojo\n");
+            digitalWrite(LED_ROJO, 0); // Apago el Led Rojo
         }
         sleep(2);
     }
@@ -144,44 +157,53 @@ void* ingresoB(void* arg) {
 }
 
 // Función para el hilo de egreso C.
-void* egresoC(void* arg) {
-    while (1) {
+void *egresoC(void *arg)
+{
+    while (1)
+    {
         sem_wait(&sem_vehiculos);
 
         if (vehiculos_dentro > 0)
+        {
+            printf("\nSale vehículo\n\n");
             vehiculos_dentro--;
-        
-        sem_post(&sem_vehiculos); //desbloqueo el semaforo
+        }
+
+        sem_post(&sem_vehiculos); // desbloqueo el semaforo
         sleep(4);
     }
     return NULL;
 }
 
 // Función para el hilo D de impresión
-void* impresionD(void* arg) {
+void *impresionD(void *arg)
+{
     char buffer[256];
     unsigned int prio;
 
-    while (1) {
-        ssize_t msg_size = mq_receive(cola_mq, buffer, sizeof(buffer), &prio);  //leo la cola y elimino el elemento leido
-        if (msg_size >= 0) {
-            sem_wait(&sem_impresion);   //bloqueo el semaforo
+    while (1)
+    {
+        ssize_t msg_size = mq_receive(cola_mq, buffer, sizeof(buffer), &prio); // leo la cola y elimino el elemento leido
+        if (msg_size >= 0)
+        {
+            sem_wait(&sem_impresion); // bloqueo el semaforo
 
             printf("Imprimo el msj que recibo: %s\n", buffer);
 
-            sem_post(&sem_impresion);   //desbloqueo el semaforo
+            sem_post(&sem_impresion); // desbloqueo el semaforo
         }
-        
+
         sleep(4);
     }
     return NULL;
 }
 
-int main() {
+int main()
+{
 
-    wiringPiSetupGpio();  // Establezco conexion con los pines
+    wiringPiSetupGpio();        // Establezco conexion con los pines
     pinMode(LED_VERDE, OUTPUT); // Declaro al pin 17 como pin de salida
-    pinMode(LED_ROJO, OUTPUT); // Declaro al pin 16 como pin de salida
+    pinMode(LED_ROJO, OUTPUT);  // Declaro al pin 16 como pin de salida
 
     // Inicializar semáforos
     sem_init(&sem_vehiculos, 0, 1);
