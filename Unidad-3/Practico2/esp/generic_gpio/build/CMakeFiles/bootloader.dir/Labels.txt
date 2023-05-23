@@ -1,13 +1,13 @@
 # Target labels
  bootloader
 # Source files and their labels
-/home/joel/esp/generic_gpio/build/CMakeFiles/bootloader
-/home/joel/esp/generic_gpio/build/CMakeFiles/bootloader.rule
-/home/joel/esp/generic_gpio/build/CMakeFiles/bootloader-complete.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
-/home/joel/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/CMakeFiles/bootloader
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/CMakeFiles/bootloader.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/CMakeFiles/bootloader-complete.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

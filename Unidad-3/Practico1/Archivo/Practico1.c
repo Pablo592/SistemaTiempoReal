@@ -72,18 +72,12 @@ int main(void)
 
                     time_t t = time(NULL);
                     struct tm tm = *localtime(&t);
-                    // printf("%02d:%02d:%02d  %d-%02d-%02d\n",tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon + 1,tm.tm_year + 1900);
-
-                    //*tiempo_pulsado = tiempoPulsado;
+                    
 
                     FILE *fichero;
-                    fichero = fopen("archivo.config", "wt");
+                    fichero = fopen("archivo.config", "na");
                     fprintf(fichero, "%02d:%02d:%02d  %d-%02d-%02d \n%f \nBOTON 1", tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tiempoPulsado);
                     fclose(fichero);
-
-                    // char result[100]; //
-                    // *ptr_fecha_hora = sprintf(result,"%02d:%02d:%02d  %d-%02d-%02d",tm.tm_hour, tm.tm_min, tm.tm_sec, tm.tm_mday, tm.tm_mon + 1,tm.tm_year + 1900);
-                    // ptr_name = "BOTON 1";
                 }
             }
         }
@@ -91,14 +85,12 @@ int main(void)
     else
     {
         double tiempo_inicio_led_prender;
-        // printf("%lf",*tiempo_pulsado);
 
         for (;;)
         {
             tiempo_inicio_led_prender = 0;
             gettimeofday(&ti, NULL); // Instante inicio del led a prender
             // if(*tiempo_pulsado >0)
-            // fprintf(stdout, "El tiempo pulsado %f.\n", *tiempo_pulsado);
 
             FILE *file_pointer;                          // Declaro un puntero que va a ir apuntando al archivo fila por fila
             char str[150];                               // Declaro una variable que va a contener las filas del archivo
@@ -142,8 +134,6 @@ int main(void)
                 /*digitalWrite(LED, 0);*/
                 gettimeofday(&tf, NULL);
                 tiempo_inicio_led_prender = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0; // Obtenemos el tiempo que lleva el led prendido
-                //  fprintf(stdout, "La fecha es: %d.\n", *ptr_fecha_hora);
-                //  fprintf(stdout, "El nombre del pulsador %d.\n", *ptr_name);
             }
             if (tiempo_pulsado != 0)
             {
@@ -155,10 +145,7 @@ int main(void)
             }
             /*digitalWrite(LED, 1);*/ // Prendemos el LED
             // printf("El periodo del LED es de : %g milisegundos\n", tiempo_inicio_led_prender);
-            // fprintf(stdout, "La fecha es: %d.\n", *ptr_fecha_hora);
-            // fprintf(stdout, "El nombre del pulsador %d.\n", *ptr_name);
-            // fprintf(stdout, "El tiempo pulsado %f.\n", *tiempo_pulsado);
-            // print("Vuelva a pulsar \n");
+
             FILE *fichero;
             fichero = fopen("archivo.config", "wt");
             fprintf(fichero, " ");
@@ -166,6 +153,5 @@ int main(void)
             tiempo_pulsado = 0;
         }
     }
-
     return 0;
 }

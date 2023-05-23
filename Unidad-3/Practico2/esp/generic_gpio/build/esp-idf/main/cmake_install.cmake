@@ -1,4 +1,4 @@
-# Install script for directory: /home/joel/esp/generic_gpio/main
+# Install script for directory: /home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

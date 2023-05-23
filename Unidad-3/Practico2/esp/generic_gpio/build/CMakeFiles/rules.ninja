@@ -1337,7 +1337,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_main_
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = /usr/bin/cmake --regenerate-during-build -S/home/joel/esp/generic_gpio -B/home/joel/esp/generic_gpio/build
+  command = /usr/bin/cmake --regenerate-during-build -S/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio -B/home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build
   description = Re-running CMake...
   generator = 1
 

@@ -1,4 +1,4 @@
-/* * Data converted from /home/joel/esp/generic_gpio/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from /home/joel/Escritorio/SistemaTiempoReal/Unidad-3/Practico2/esp/generic_gpio/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded
