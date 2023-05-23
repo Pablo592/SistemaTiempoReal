@@ -6,8 +6,13 @@
 #include <semaphore.h>
 #include <time.h>
 #include <pthread.h>
+#include <wiringPi.h> // Inicializo libreria para controlar los pines
 
 #define MAX_LUGARES 10
+#define LED_VERDE 17 //
+#define LED_ROJO 16 //
+
+
 
 // Estructura para almacenar los datos de un vehículo
 typedef struct {
@@ -70,11 +75,13 @@ void* ingresoA(void* arg) {
     while (1) {
         sem_wait(&sem_vehiculos);
         if (vehiculos_dentro < MAX_LUGARES) {
+            digitalWrite(LED_VERDE, 1); // Prendo el Led
+            printf("Prendo\n");   // Imprimo en pantalla
             vehiculos_dentro++;
             sem_post(&sem_vehiculos);
 
             // Simular tiempo de autorización de ingreso
-            sleep(1);
+            sleep(2);
 
             printf("Autorización de ingreso para A: LED verde\n");
 
@@ -87,10 +94,15 @@ void* ingresoA(void* arg) {
 
             // Enviar mensaje a la cola
             enviarMensajeCola(vehiculo);
+            digitalWrite(LED_VERDE, 0); // APAGO el Led
         } else {
+            digitalWrite(LED_ROJO, 1); // Prendo el Led
+            sleep(2);
             sem_post(&sem_vehiculos);
             printf("Plaza llena para A: LED rojo\n");
+            digitalWrite(LED_ROJO,0); // Prendo el Led
         }
+            
 
         sleep(2);
     }
@@ -102,11 +114,12 @@ void* ingresoB(void* arg) {
     while (1) {
         sem_wait(&sem_vehiculos);
         if (vehiculos_dentro < MAX_LUGARES) {
+            digitalWrite(LED_VERDE, 1); // Prendo el Led
             vehiculos_dentro++;
             sem_post(&sem_vehiculos);
 
             // Simular tiempo de autorización de ingreso
-            sleep(1);
+            sleep(2);
 
             printf("Autorización de ingreso para B: LED verde\n");
 
@@ -119,9 +132,13 @@ void* ingresoB(void* arg) {
 
             // Enviar mensaje a la cola
             enviarMensajeCola(vehiculo);
+            digitalWrite(LED_VERDE, 0); // APAGO el Led
         } else {
+            digitalWrite(LED_ROJO, 1); // Prendo el Led
+            sleep(2);
             sem_post(&sem_vehiculos);
             printf("Plaza llena para B: LED rojo\n");
+            digitalWrite(LED_ROJO,0); // Prendo el Led
         }
 
         sleep(2);
@@ -167,6 +184,11 @@ void* impresionD(void* arg) {
 }
 
 int main() {
+
+    wiringPiSetupGpio();  // Establezco conexion con los pines
+    pinMode(LED, OUTPUT); // Declaro al pin 17 como pin de salida
+
+
     // Inicializar semáforos
     sem_init(&sem_vehiculos, 0, 1);
     sem_init(&sem_impresion, 0, 1);
