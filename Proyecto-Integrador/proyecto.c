@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -39,6 +40,13 @@ struct sensor
     double humedad;
 };
 
+///////////MUTEX//////////////
+// The pointer to shared mutex
+pthread_mutex_t *mutex = NULL;
+int mutex_shm_fd = -1;
+void init_control_mechanism();
+//////////////////////////////
+
 ///////////Shared memory////////
 int shared_fd_parameters = -1;
 int shared_fd_sensor = -1;
@@ -59,6 +67,7 @@ char archivoNombre[20] = "riego.config";
 int main(void)
 {
     init_shared_resource();
+    init_control_mechanism();
 
     pthread_t hilo1; //
     pthread_t hilo2; // Inicializo los hilos
@@ -85,62 +94,66 @@ int main(void)
 
 void *lectorDeArchivo()
 {
-    FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
-    char str[150];                            // Declaro una variable que va a contener las filas del archivo
-    file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
-
-    if (file_pointer == NULL)
+    while (1)
     {
-        printf("Error opening file!");
-        exit(1);
-    }
+        pthread_mutex_lock(mutex);
+        FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
+        char str[150];                            // Declaro una variable que va a contener las filas del archivo
+        file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
 
-    while (fgets(str, 150, file_pointer) != NULL) // Voy recorriendo el archivo fila por fila
-    {
-        if (!starts_with(str, "#")) // Ignoro el instructivo del formato
+        if (file_pointer == NULL)
         {
-            char *ptr = strtok(str, ":"); // La posicion 0 del split(":")
-            ptr = strtok(NULL, ":");      // La posicion 1 del split(":")
+            printf("Error opening file!");
+            exit(1);
+        }
 
-            if (starts_with(str, "TempMax")) // Asigno los valores a las variables correspondientes
+        while (fgets(str, 150, file_pointer) != NULL) // Voy recorriendo el archivo fila por fila
+        {
+            if (!starts_with(str, "#")) // Ignoro el instructivo del formato
             {
-                ptr_parameters->tempMax = atof(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
-                printf("'%f'\n", ptr_parameters->tempMax); // Imprimo el valor ajodado en la memoria compartida
-            }
-            else if (starts_with(str, "HumMin"))
-            {
-                ptr_parameters->humMin = atof(ptr);
-                printf("'%f'\n", ptr_parameters->humMin);
-            }
-            else if (starts_with(str, "HoraRiego"))
-            {
-                ptr_parameters->horaRiego = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->horaRiego);
-            }
-            else if (starts_with(str, "MinutoRiego"))
-            {
-                ptr_parameters->minutoRiego = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->minutoRiego);
-            }
-            else if (starts_with(str, "DuracionMinutosRiego"))
-            {
-                ptr_parameters->duracionMinutosRiego = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->duracionMinutosRiego);
-            }
-            else if (starts_with(str, "TiempoAnticipacionAlarma"))
-            {
-                ptr_parameters->tiempoAnticipacionAlarma = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->tiempoAnticipacionAlarma);
-            }
-            else if (starts_with(str, "DuracionMinutosAlarma"))
-            {
-                ptr_parameters->duracionMinutosAlarma = atoi(ptr);
-                printf("'%d'\n", ptr_parameters->duracionMinutosAlarma);
+                char *ptr = strtok(str, ":"); // La posicion 0 del split(":")
+                ptr = strtok(NULL, ":");      // La posicion 1 del split(":")
+
+                if (starts_with(str, "TempMax")) // Asigno los valores a las variables correspondientes
+                {
+                    ptr_parameters->tempMax = atof(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
+                    printf("'%f'\n", ptr_parameters->tempMax); // Imprimo el valor ajodado en la memoria compartida
+                }
+                else if (starts_with(str, "HumMin"))
+                {
+                    ptr_parameters->humMin = atof(ptr);
+                    printf("'%f'\n", ptr_parameters->humMin);
+                }
+                else if (starts_with(str, "HoraRiego"))
+                {
+                    ptr_parameters->horaRiego = atoi(ptr);
+                    printf("'%d'\n", ptr_parameters->horaRiego);
+                }
+                else if (starts_with(str, "MinutoRiego"))
+                {
+                    ptr_parameters->minutoRiego = atoi(ptr);
+                    printf("'%d'\n", ptr_parameters->minutoRiego);
+                }
+                else if (starts_with(str, "DuracionMinutosRiego"))
+                {
+                    ptr_parameters->duracionMinutosRiego = atoi(ptr);
+                    printf("'%d'\n", ptr_parameters->duracionMinutosRiego);
+                }
+                else if (starts_with(str, "TiempoAnticipacionAlarma"))
+                {
+                    ptr_parameters->tiempoAnticipacionAlarma = atoi(ptr);
+                    printf("'%d'\n", ptr_parameters->tiempoAnticipacionAlarma);
+                }
+                else if (starts_with(str, "DuracionMinutosAlarma"))
+                {
+                    ptr_parameters->duracionMinutosAlarma = atoi(ptr);
+                    printf("'%d'\n", ptr_parameters->duracionMinutosAlarma);
+                }
             }
         }
-    }
 
-    fclose(file_pointer); // Cierro el archivo
+        fclose(file_pointer); // Cierro el archivo      
+    }
     return NULL;
 }
 
@@ -229,7 +242,7 @@ void *monitoreaCambiosArchivo()
 
     while (1)
     {
-      
+
         sleep(1);
 
         if (stat(filename, &file_stat) == -1)
@@ -246,14 +259,15 @@ void *monitoreaCambiosArchivo()
         strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
         // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
 
-        //printf("La última modificación fue el %s.\n", fecha_anterior);
-        //printf("La Actual modificación fue el %s.\n", fecha_actual);
+        // printf("La última modificación fue el %s.\n", fecha_anterior);
+        // printf("La Actual modificación fue el %s.\n", fecha_actual);
 
         for (size_t i = 0; i < strlen(fecha_actual); i++)
         {
             if (fecha_anterior[i] != fecha_actual[i])
             {
                 printf("Archivo modificado \n");
+                pthread_mutex_unlock(mutex);
 
                 for (size_t i = 0; i < strlen(fecha_actual); i++)
                 {
@@ -343,4 +357,59 @@ int init_shared_resource()
 
     ptr_parameters = (struct parameters *)map_parameters;
     ptr_sensor = (struct sensor *)map_sensor;
+}
+
+void init_control_mechanism()
+{
+    // Open the mutex shared memory
+    mutex_shm_fd = shm_open("/mutex0", O_CREAT | O_RDWR, 0600);
+    if (mutex_shm_fd < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
+        exit(1);
+    }
+    // Allocate and truncate the mutex's shared memory region
+    if (ftruncate(mutex_shm_fd, sizeof(pthread_mutex_t)) < 0)
+    {
+        fprintf(stderr, "ERROR: Truncation of mutex failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+    // Map the mutex's shared memory
+    void *map = mmap(0, sizeof(pthread_mutex_t),
+                     PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd, 0);
+    if (map == MAP_FAILED)
+    {
+        fprintf(stderr, "ERROR: Mapping failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+    mutex = (pthread_mutex_t *)map;
+    // Initialize the mutex object
+    int ret = -1;
+    pthread_mutexattr_t attr;
+    if ((ret = pthread_mutexattr_init(&attr)))
+    {
+        fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n",
+                strerror(ret));
+        exit(1);
+    }
+    if ((ret = pthread_mutexattr_setpshared(&attr,
+                                            PTHREAD_PROCESS_SHARED)))
+    {
+        fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n",
+                strerror(ret));
+        exit(1);
+    }
+    if ((ret = pthread_mutex_init(mutex, &attr)))
+    {
+        fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n",
+                strerror(ret));
+        exit(1);
+    }
+    if ((ret = pthread_mutexattr_destroy(&attr)))
+    {
+        fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret));
+        exit(1);
+    }
 }
