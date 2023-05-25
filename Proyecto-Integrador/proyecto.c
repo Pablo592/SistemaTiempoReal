@@ -17,8 +17,9 @@
 #include <sys/mman.h>
 #include <sys/stat.h> //para obtener la configuracion del archivo
 ///////// PERIFERICOS ////
-#define PWM_PIN 1 // El pin del serbo
-#define ALARMA 17 // El pin del led/alarma
+#define PWM_PIN 1   // El pin del serbo
+#define ALARMA 17   // El pin del led/alarma
+#define PULSADOR 18 // El pin donde se conecta el PULSADOR
 void *lectorDeArchivo();
 void *monitoreaSensorHumedadTemperatura();
 void *activaAlarma();
@@ -54,16 +55,17 @@ void init_control_mechanism();
 ///////////Shared memory////////
 int shared_fd_parameters = -1;
 int shared_fd_sensor = -1;
+int shared_fd_pulsador = -1;
 struct parameters *ptr_parameters = NULL;
 struct sensor *ptr_sensor = NULL;
+bool *ptr_pulsador = NULL;
 #define SH_SIZE_PARAMETERS 1
 #define SH_SIZE_SENSOR 1
+#define SH_SIZE_PULSADOR 1
 int init_shared_resource();
 ///////////////////////////////////////
 
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address
-
-#define TS 100000000 // nanosegundos.
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
@@ -74,7 +76,7 @@ void muevoSerbo(float grados);
 void controloAlarma(bool estado);
 char archivoNombre[20] = "riego.config";
 
-
+int pulso = false;
 
 int main(void)
 {
@@ -93,13 +95,13 @@ int main(void)
     pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
     pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
-    // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
-    pthread_join(hilo1, NULL); //
+    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
+    pthread_join(hilo1, NULL);                             //
     pthread_join(hilo2, NULL);
     pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL); //
-    // pthread_join(hilo6, NULL);
+    pthread_join(hilo6, NULL);
 
     return 0;
 }
@@ -165,10 +167,16 @@ void *lectorDeArchivo()
                 {
                     duracionMinutosAlarma = atoi(ptr);
                     printf("'%d'\n", duracionMinutosAlarma);
-                }else if (starts_with(str, "Frecuencia_Actualizacion_Temp_And_Hume_En_Seg"))
+                }
+                else if (starts_with(str, "Frecuencia_Actualizacion_Temp_And_Hume_En_Seg"))
                 {
                     frecuencia_Actualizacion_Temp_And_Hume_En_Seg = atof(ptr);
                     printf("'%f'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
+                }
+                else if (starts_with(str, "pulsador"))
+                {
+                    pulso = atoi(ptr);
+                    printf("'%d'\n", pulso);
                 }
             }
         }
@@ -227,13 +235,14 @@ void *monitoreaSensorHumedadTemperatura()
             cur_hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
             cur_hum = cur_hum * 100 / 1048576;
             printf("Humidity: %1.f %\n", cur_hum); // Se imprime la humedad monitoreada por consola
-    */  
-        tiempo= (tf.tv_sec - ti.tv_sec)*1000 + (tf.tv_usec - ti.tv_usec)/1000.0;
-        tiempo = tiempo /1000;  //tiempo en segundos
-        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg) 
+    */
+        tiempo = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0;
+        tiempo = tiempo / 1000; // tiempo en segundos
+        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)
             gettimeofday(&tf, NULL);
-        else {
-            //printf("Has tardado finalmente : %g segundos\n", tiempo);
+        else
+        {
+            // printf("Has tardado finalmente : %g segundos\n", tiempo);
             gettimeofday(&ti, NULL);
             FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
             char str[150];                            // Declaro una variable que va a contener las filas del archivo
@@ -267,7 +276,6 @@ void *monitoreaSensorHumedadTemperatura()
 
             fclose(file_pointer); // Cierro el archivo
         }
-        
     }
 
     //   close(file);
@@ -277,8 +285,8 @@ void *monitoreaSensorHumedadTemperatura()
 
 void *activaAlarma()
 {
-    //wiringPiSetupGpio();  // Establezco conexion con los pines
-    //pinMode(ALARMA, OUTPUT); // Declaro al pin 17 como pin de salida
+    // wiringPiSetupGpio();  // Establezco conexion con los pines
+    // pinMode(ALARMA, OUTPUT); // Declaro al pin 17 como pin de salida
     bool alarma = false;
     while (1)
     {
@@ -330,9 +338,8 @@ void *activaServomotor()
         time_t fechaAux = fechaActual();
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
         bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
-        bool pulsador = false;
 
-        if (condicionHoraria || condicionClimatica || pulsador)
+        if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
             printf("\nsale el agua\n");
             if (agua == false)
@@ -343,12 +350,12 @@ void *activaServomotor()
             }
         }
 
+        printf("\n SERBO %d\n", *ptr_pulsador);
         if (!condicionHoraria)
         {
-            if (condicionClimatica || pulsador)
+            if (condicionClimatica || *ptr_pulsador)
             {
                 printf("\nsigue saliendo el agua\n");
-                break;
             }
             else
             {
@@ -432,8 +439,39 @@ void *monitoreaCambiosArchivo()
 
 void *monitoreaPulsador()
 {
+    *ptr_pulsador = false;
+    bool presionado = false;
+    int contador = 0;
+    // wiringPiSetupGpio();      // Establezco conexion con los pines
+    // pinMode(PULSADOR, INPUT); // Declaro al pin 17 como pin de entrada
+    while (1)
+    {
+        // sleep(1);
+        //     printf("\n CONFIG %d\n",pulso);
+        //     printf("\n PTR_PULSADOR %d\n",*ptr_pulsador);
+        if (pulso)
+        {
+            presionado = true;
+        }
+
+        if (presionado && !pulso)
+        {
+            if (contador % 2 == 0)
+            {
+                *ptr_pulsador = !*ptr_pulsador;
+                presionado = false;
+            }
+            contador++;
+        }
+    }
     return NULL;
 }
+
+/*  abajo   arriba
+    0
+
+
+*/
 
 // https://www.um.es/earlyadopters/actividades/a3/PCD_Activity3_Session1.pdf
 
@@ -465,8 +503,9 @@ void muevoSerbo(float grados)
     */
 }
 
-void controloAlarma(bool estado){
-//    digitalWrite(ALARMA, estado); // Prendo el Led
+void controloAlarma(bool estado)
+{
+    //    digitalWrite(ALARMA, estado); // Prendo el Led
 }
 bool starts_with(const char *str, const char *prefix)
 {
@@ -496,6 +535,7 @@ int init_shared_resource()
 
     shared_fd_parameters = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
     shared_fd_sensor = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
+    shared_fd_pulsador = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
 
     if (shared_fd_parameters < 0)
     {
@@ -507,8 +547,14 @@ int init_shared_resource()
         fprintf(stderr, "ERROR: Failed to create shared memory SENSOR: %s\n", strerror(errno));
         exit(1);
     }
+    if (shared_fd_pulsador < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create shared memory SENSOR: %s\n", strerror(errno));
+        exit(1);
+    }
     fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_parameters);
     fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_sensor);
+    fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_pulsador);
 
     // tamaño exacto de 1 unica estrcutura
     if (ftruncate(shared_fd_parameters, SH_SIZE_PARAMETERS * sizeof(struct parameters)) < 0)
@@ -521,10 +567,16 @@ int init_shared_resource()
         fprintf(stderr, "ERROR: Truncation failed: %s\n", strerror(errno));
         return 1;
     }
+    if (ftruncate(shared_fd_pulsador, SH_SIZE_PULSADOR * sizeof(bool)) < 0)
+    {
+        fprintf(stderr, "ERROR: Truncation failed: %s\n", strerror(errno));
+        return 1;
+    }
 
     // hace el mapeo de los objetos en RAM
     void *map_parameters = mmap(0, SH_SIZE_PARAMETERS, PROT_WRITE, MAP_SHARED, shared_fd_parameters, 0);
     void *map_sensor = mmap(0, SH_SIZE_SENSOR, PROT_WRITE, MAP_SHARED, shared_fd_sensor, 0);
+    void *map_pulsador = mmap(0, SH_SIZE_SENSOR, PROT_WRITE, MAP_SHARED, shared_fd_pulsador, 0);
 
     if (map_parameters == MAP_FAILED)
     {
@@ -536,10 +588,16 @@ int init_shared_resource()
         fprintf(stderr, "ERROR: Mapping failed: %s\n", strerror(errno));
         return 1;
     }
+    if (map_pulsador == MAP_FAILED)
+    {
+        fprintf(stderr, "ERROR: Mapping failed: %s\n", strerror(errno));
+        return 1;
+    }
 
     // redirecciona los ptrs a sus correspondientes estructuras
     ptr_parameters = (struct parameters *)map_parameters;
     ptr_sensor = (struct sensor *)map_sensor;
+    ptr_pulsador = (bool *)map_pulsador;
 }
 
 void init_control_mechanism()
