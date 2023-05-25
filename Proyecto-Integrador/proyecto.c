@@ -1,4 +1,5 @@
 // #include <wiringPi.h>
+// #include <softPwm.h>
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
@@ -15,6 +16,9 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h> //para obtener la configuracion del archivo
+
+///////// PERIFERICOS ////
+#define PWM_PIN 1 // El pin del serbo
 
 void *lectorDeArchivo();
 void *monitoreaSensorHumedadTemperatura();
@@ -62,6 +66,8 @@ int init_shared_resource();
 bool starts_with(const char *str, const char *prefix);
 bool comparaStr(char entrada[], char modelo[]);
 time_t establecerFecha(int hora, int minutos);
+time_t fechaActual();
+void muevoSerbo(float grados);
 char archivoNombre[20] = "riego.config";
 
 int main(void)
@@ -79,15 +85,15 @@ int main(void)
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
     // pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
     // pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
-    // pthread_create(&hilo4, NULL, activaServomotor, NULL); //
+    pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
     pthread_join(hilo1, NULL); //
-    // pthread_join(hilo2, NULL);                             
-    // pthread_join(hilo3, NULL);                             
-    // pthread_join(hilo4, NULL);                             
+    // pthread_join(hilo2, NULL);
+    // pthread_join(hilo3, NULL);
+    pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL); //
-    // pthread_join(hilo6, NULL);                             
+    // pthread_join(hilo6, NULL);
 
     return 0;
 }
@@ -227,11 +233,58 @@ void *activaAlarma()
 
 void *activaServomotor()
 {
+
+    float grados = 180;
+    bool agua = false;
+
+    /*
+    wiringPiSetup();                // Inicializamos la biblioteca WiringPi
+    pinMode(PWM_PIN, PWM_OUTPUT);   // Se establece que el pin sera de salida
+    digitalWrite(PWM_PIN, 0);       // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
+    softPwmCreate(PWM_PIN, 0, 200); // crea una señal de modulación de ancho de pulso (PWM) impulsada por software en un pin GPIO específico.
+                                    // softPwmCreate(int pin, int initialValue, int pwmRange);
+    */
+
     while (1)
     {
+        time_t fechaAux = fechaActual();
+        bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
+        bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
+        bool pulsador = false;
+
+        if (condicionHoraria || condicionClimatica || pulsador)
+        {
+            printf("\nsale el agua\n");
+            if (agua == false)
+            {
+                agua = true;
+                printf("muevo serbo");
+                muevoSerbo(grados);
+            }
+        }
+
+        if (!condicionHoraria)
+        {
+            if (condicionClimatica || pulsador)
+            {
+                printf("\nsigue saliendo el agua\n");
+                break;
+            }
+            else
+            {
+                printf("\ncierro el agua\n");
+                if (agua == true)
+                {
+                    agua = false;
+                    printf("muevo serbo");
+                    muevoSerbo(grados);
+                }
+            }
+        }
+
         sleep(1);
-        printf("Temperatura: %lf\n", ptr_sensor->temperatura);
-        printf("Humedad: %lf\n", ptr_sensor->humedad);
+        // printf("Temperatura: %lf\n", ptr_sensor->temperatura);
+        // printf("Humedad: %lf\n", ptr_sensor->humedad);
     }
     return NULL;
 }
@@ -313,6 +366,23 @@ time_t establecerFecha(int hora, int minutos)
     localTime->tm_min = minutos;
     localTime->tm_sec = 0;
     return mktime(localTime);
+}
+
+time_t fechaActual()
+{
+    time_t currentTime;
+    time(&currentTime);
+    struct tm *localTime = localtime(&currentTime);
+    return mktime(localTime);
+}
+
+void muevoSerbo(float grados)
+{
+    /*
+     float microsegundos;
+     microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
+     softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
+    */
 }
 
 bool starts_with(const char *str, const char *prefix)
