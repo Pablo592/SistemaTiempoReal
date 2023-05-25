@@ -83,11 +83,11 @@ int main(void)
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
     pthread_join(hilo1, NULL); //
-    // pthread_join(hilo2, NULL);                             // Espero a que el hilo finalice su ejecucion
-    // pthread_join(hilo3, NULL);                             //
-    // pthread_join(hilo4, NULL);                             //
-    pthread_join(hilo5, NULL); // Espero a que el hilo finalice su ejecucion
-    // pthread_join(hilo6, NULL);                             //
+    // pthread_join(hilo2, NULL);                             
+    // pthread_join(hilo3, NULL);                             
+    // pthread_join(hilo4, NULL);                             
+    pthread_join(hilo5, NULL); //
+    // pthread_join(hilo6, NULL);                             
 
     return 0;
 }
