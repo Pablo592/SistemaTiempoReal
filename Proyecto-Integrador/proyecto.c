@@ -27,8 +27,7 @@ struct parameters
 {
     double tempMax;
     double humMin;
-    int horaRiego;
-    int minutoRiego;
+    time_t horaRiego;
     int duracionMinutosRiego;
     int tiempoAnticipacionAlarma;
     int duracionMinutosAlarma;
@@ -100,6 +99,8 @@ void *lectorDeArchivo()
         FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
         char str[150];                            // Declaro una variable que va a contener las filas del archivo
         file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
+        int horaRiego = 0;
+        int minutoRiego = 0;
 
         if (file_pointer == NULL)
         {
@@ -126,13 +127,13 @@ void *lectorDeArchivo()
                 }
                 else if (starts_with(str, "HoraRiego"))
                 {
-                    ptr_parameters->horaRiego = atoi(ptr);
-                    printf("'%d'\n", ptr_parameters->horaRiego);
+                    horaRiego = atoi(ptr);
+                    printf("'%d'\n", horaRiego);
                 }
                 else if (starts_with(str, "MinutoRiego"))
                 {
-                    ptr_parameters->minutoRiego = atoi(ptr);
-                    printf("'%d'\n", ptr_parameters->minutoRiego);
+                    minutoRiego = atoi(ptr);
+                    printf("'%d'\n", minutoRiego);
                 }
                 else if (starts_with(str, "DuracionMinutosRiego"))
                 {
@@ -151,8 +152,18 @@ void *lectorDeArchivo()
                 }
             }
         }
+        // Obtener la hora actual
+        time_t currentTime;
+        time(&currentTime);
+        struct tm *localTime = localtime(&currentTime);
+        localTime->tm_hour = horaRiego;
+        localTime->tm_min = minutoRiego;
 
-        fclose(file_pointer); // Cierro el archivo      
+        // Convertir la estructura struct tm actualizada a un valor time_t
+        ptr_parameters->horaRiego = mktime(localTime);
+        printf("Nueva fecha y hora: %s", ctime(&ptr_parameters->horaRiego));
+
+        fclose(file_pointer); // Cierro el archivo
     }
     return NULL;
 }
