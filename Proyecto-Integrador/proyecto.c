@@ -19,6 +19,8 @@
 
 ///////// PERIFERICOS ////
 #define PWM_PIN 1 // El pin del serbo
+#define ALARMA 17 // El pin del led/alarma
+
 
 void *lectorDeArchivo();
 void *monitoreaSensorHumedadTemperatura();
@@ -68,6 +70,7 @@ bool comparaStr(char entrada[], char modelo[]);
 time_t establecerFecha(int hora, int minutos);
 time_t fechaActual();
 void muevoSerbo(float grados);
+void controloAlarma(bool estado);
 char archivoNombre[20] = "riego.config";
 
 int main(void)
@@ -84,13 +87,13 @@ int main(void)
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
     // pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-    // pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
+    pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
     pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
     pthread_join(hilo1, NULL); //
     // pthread_join(hilo2, NULL);
-    // pthread_join(hilo3, NULL);
+    pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL); //
     // pthread_join(hilo6, NULL);
@@ -228,6 +231,37 @@ void *monitoreaSensorHumedadTemperatura()
 
 void *activaAlarma()
 {
+    //wiringPiSetupGpio();  // Establezco conexion con los pines
+    //pinMode(ALARMA, OUTPUT); // Declaro al pin 17 como pin de salida
+    bool alarma = false;
+    while (1)
+    {
+        time_t fechaAux = fechaActual();
+        bool condicionHoraria = ((fechaAux >= ptr_parameters->tiempoAnticipacionAlarma) && (fechaAux < ptr_parameters->duracionMinutosAlarma));
+
+        if (condicionHoraria)
+        {
+
+            printf("\nSuena el alarma\n");
+            if (alarma == false)
+            {
+                alarma = true;
+                printf("prendo el led");
+                controloAlarma(alarma);
+            }
+        }
+        else
+        {
+            if (alarma == true)
+            {
+                alarma = false;
+                printf("apago el led");
+                controloAlarma(alarma);
+            }
+        }
+        sleep(1);
+    }
+
     return NULL;
 }
 
@@ -326,10 +360,6 @@ void *monitoreaCambiosArchivo()
         // Formatea y muestra la fecha de modificación
         char fecha_actual[50];
         strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
-        // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
-
-        // printf("La última modificación fue el %s.\n", fecha_anterior);
-        // printf("La Actual modificación fue el %s.\n", fecha_actual);
 
         for (size_t i = 0; i < strlen(fecha_actual); i++)
         {
@@ -383,6 +413,10 @@ void muevoSerbo(float grados)
      microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
      softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
     */
+}
+
+void controloAlarma(bool estado){
+//    digitalWrite(ALARMA, estado); // Prendo el Led
 }
 
 bool starts_with(const char *str, const char *prefix)
