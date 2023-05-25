@@ -28,9 +28,9 @@ struct parameters
     double tempMax;
     double humMin;
     time_t horaRiego;
-    int duracionMinutosRiego;
-    int tiempoAnticipacionAlarma;
-    int duracionMinutosAlarma;
+    time_t duracionMinutosRiego;
+    time_t tiempoAnticipacionAlarma;
+    time_t duracionMinutosAlarma;
 };
 
 struct sensor
@@ -61,6 +61,7 @@ int init_shared_resource();
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
 bool comparaStr(char entrada[], char modelo[]);
+time_t establecerFecha(int hora, int minutos);
 char archivoNombre[20] = "riego.config";
 
 int main(void)
@@ -101,6 +102,9 @@ void *lectorDeArchivo()
         file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
         int horaRiego = 0;
         int minutoRiego = 0;
+        int duracionMinutosRiego = 0;
+        int tiempoAnticipacionAlarma = 0;
+        int duracionMinutosAlarma = 0;
 
         if (file_pointer == NULL)
         {
@@ -137,31 +141,32 @@ void *lectorDeArchivo()
                 }
                 else if (starts_with(str, "DuracionMinutosRiego"))
                 {
-                    ptr_parameters->duracionMinutosRiego = atoi(ptr);
-                    printf("'%d'\n", ptr_parameters->duracionMinutosRiego);
+                    duracionMinutosRiego = atoi(ptr);
+                    printf("'%d'\n", duracionMinutosRiego);
                 }
                 else if (starts_with(str, "TiempoAnticipacionAlarma"))
                 {
-                    ptr_parameters->tiempoAnticipacionAlarma = atoi(ptr);
-                    printf("'%d'\n", ptr_parameters->tiempoAnticipacionAlarma);
+                    tiempoAnticipacionAlarma = atoi(ptr);
+                    printf("'%d'\n", tiempoAnticipacionAlarma);
                 }
                 else if (starts_with(str, "DuracionMinutosAlarma"))
                 {
-                    ptr_parameters->duracionMinutosAlarma = atoi(ptr);
-                    printf("'%d'\n", ptr_parameters->duracionMinutosAlarma);
+                    duracionMinutosAlarma = atoi(ptr);
+                    printf("'%d'\n", duracionMinutosAlarma);
                 }
             }
         }
-        // Obtener la hora actual
-        time_t currentTime;
-        time(&currentTime);
-        struct tm *localTime = localtime(&currentTime);
-        localTime->tm_hour = horaRiego;
-        localTime->tm_min = minutoRiego;
 
-        // Convertir la estructura struct tm actualizada a un valor time_t
-        ptr_parameters->horaRiego = mktime(localTime);
-        printf("Nueva fecha y hora: %s", ctime(&ptr_parameters->horaRiego));
+        ptr_parameters->horaRiego = establecerFecha(horaRiego, minutoRiego);
+        ptr_parameters->duracionMinutosRiego = establecerFecha(horaRiego, minutoRiego + duracionMinutosRiego);
+        ptr_parameters->tiempoAnticipacionAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma);
+        ptr_parameters->duracionMinutosAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma + (duracionMinutosAlarma == 0 ? tiempoAnticipacionAlarma : duracionMinutosAlarma));
+
+        printf("Horario de riego: %s", ctime(&ptr_parameters->horaRiego));
+        printf("Duracion de riego: %s", ctime(&ptr_parameters->duracionMinutosRiego));
+
+        printf("Horario de alarma: %s", ctime(&ptr_parameters->tiempoAnticipacionAlarma));
+        printf("Duracion de alarma: %s", ctime(&ptr_parameters->duracionMinutosAlarma));
 
         fclose(file_pointer); // Cierro el archivo
     }
@@ -298,6 +303,17 @@ void *monitoreaPulsador()
 }
 
 // https://www.um.es/earlyadopters/actividades/a3/PCD_Activity3_Session1.pdf
+
+time_t establecerFecha(int hora, int minutos)
+{
+    time_t currentTime;
+    time(&currentTime);
+    struct tm *localTime = localtime(&currentTime);
+    localTime->tm_hour = hora;
+    localTime->tm_min = minutos;
+    localTime->tm_sec = 0;
+    return mktime(localTime);
+}
 
 bool starts_with(const char *str, const char *prefix)
 {
