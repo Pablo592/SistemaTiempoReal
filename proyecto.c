@@ -16,9 +16,12 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h> //para obtener la configuracion del archivo
+
 ///////// PERIFERICOS ////
 #define PWM_PIN 1 // El pin del serbo
 #define ALARMA 17 // El pin del led/alarma
+
+
 void *lectorDeArchivo();
 void *monitoreaSensorHumedadTemperatura();
 void *activaAlarma();
@@ -26,7 +29,6 @@ void *activaServomotor();
 void *monitoreaCambiosArchivo();
 void *monitoreaPulsador();
 
-// estructura de variables de riego que se extraen de los archivos
 struct parameters
 {
     double tempMax;
@@ -36,7 +38,6 @@ struct parameters
     time_t tiempoAnticipacionAlarma;
     time_t duracionMinutosAlarma;
 };
-double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 1;
 
 struct sensor
 {
@@ -63,8 +64,6 @@ int init_shared_resource();
 
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address
 
-#define TS 100000000 // nanosegundos.
-
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
 bool comparaStr(char entrada[], char modelo[]);
@@ -73,8 +72,6 @@ time_t fechaActual();
 void muevoSerbo(float grados);
 void controloAlarma(bool estado);
 char archivoNombre[20] = "riego.config";
-
-
 
 int main(void)
 {
@@ -89,13 +86,13 @@ int main(void)
     pthread_t hilo6; //
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
-    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
+    // pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
     pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
     pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     // pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
     pthread_join(hilo1, NULL); //
-    pthread_join(hilo2, NULL);
+    // pthread_join(hilo2, NULL);
     pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL); //
@@ -165,10 +162,6 @@ void *lectorDeArchivo()
                 {
                     duracionMinutosAlarma = atoi(ptr);
                     printf("'%d'\n", duracionMinutosAlarma);
-                }else if (starts_with(str, "Frecuencia_Actualizacion_Temp_And_Hume_En_Seg"))
-                {
-                    frecuencia_Actualizacion_Temp_And_Hume_En_Seg = atof(ptr);
-                    printf("'%f'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
                 }
             }
         }
@@ -191,7 +184,6 @@ void *lectorDeArchivo()
 
 void *monitoreaSensorHumedadTemperatura()
 {
-
     /*  wiringPiSetupGpio();
       int file;
       char *filename = "/dev/i2c-1";           // I2C bus device file
@@ -208,12 +200,9 @@ void *monitoreaSensorHumedadTemperatura()
       }
   */
     // Send command to measure temperature and humidity
-    // char command[3] = {0xAC, 0x33, 0x00}; // Busco en memoria la humedad y temperatura detectada por el sensor
+    char command[3] = {0xAC, 0x33, 0x00}; // Busco en memoria la humedad y temperatura detectada por el sensor
 
-    double cur_temp, cur_hum;
-    struct timeval ti, tf;
-    double tiempo;
-    gettimeofday(&ti, NULL);
+    double cur_temp, ctmp;
     while (1) // El sensor recopila datos sin parar
     {
         /*    write(file, command, 3);
@@ -224,50 +213,15 @@ void *monitoreaSensorHumedadTemperatura()
             cur_temp = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]);
             cur_temp = ((cur_temp * 200) / 1048576) - 50;
             printf("Temperature: %2.2f\n", cur_temp); // Se imprime la temperatura monitoreada por consola
-            cur_hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
-            cur_hum = cur_hum * 100 / 1048576;
-            printf("Humidity: %1.f %\n", cur_hum); // Se imprime la humedad monitoreada por consola
-    */  
-        tiempo= (tf.tv_sec - ti.tv_sec)*1000 + (tf.tv_usec - ti.tv_usec)/1000.0;
-        tiempo = tiempo /1000;  //tiempo en segundos
-        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg) 
-            gettimeofday(&tf, NULL);
-        else {
-            //printf("Has tardado finalmente : %g segundos\n", tiempo);
-            gettimeofday(&ti, NULL);
-            FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
-            char str[150];                            // Declaro una variable que va a contener las filas del archivo
-            file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
-
-            if (file_pointer == NULL)
-            {
-                printf("Error opening file!");
-                exit(1);
-            }
-
-            while (fgets(str, 150, file_pointer) != NULL) // Voy recorriendo el archivo fila por fila
-            {
-                if (!starts_with(str, "#")) // Ignoro el instructivo del formato
-                {
-                    char *ptr = strtok(str, ":"); // La posicion 0 del split(":")
-                    ptr = strtok(NULL, ":");      // La posicion 1 del split(":")
-
-                    if (starts_with(str, "cur_temp")) // Asigno los valores a las variables correspondientes
-                    {
-                        ptr_sensor->temperatura = atof(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
-                        printf("'%f'\n", ptr_sensor->temperatura); // Imprimo el valor ajodado en la memoria compartida
-                    }
-                    else if (starts_with(str, "cur_hum"))
-                    {
-                        ptr_sensor->humedad = atof(ptr);
-                        printf("'%f'\n", ptr_sensor->humedad);
-                    }
-                }
-            }
-
-            fclose(file_pointer); // Cierro el archivo
-        }
-        
+            ctmp = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
+            ctmp = ctmp * 100 / 1048576;
+            printf("Humidity: %1.f %\n", ctmp); // Se imprime la humedad monitoreada por consola
+    */
+        cur_temp += 0.1;
+        ctmp += 0.1;
+        sleep(1);
+        ptr_sensor->temperatura = cur_temp;
+        ptr_sensor->humedad = ctmp;
     }
 
     //   close(file);
@@ -406,17 +360,13 @@ void *monitoreaCambiosArchivo()
         // Formatea y muestra la fecha de modificación
         char fecha_actual[50];
         strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
-        // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
-
-        // printf("La última modificación fue el %s.\n", fecha_anterior);
-        // printf("La Actual modificación fue el %s.\n", fecha_actual);
 
         for (size_t i = 0; i < strlen(fecha_actual); i++)
         {
             if (fecha_anterior[i] != fecha_actual[i])
             {
                 printf("Archivo modificado \n");
-                pthread_mutex_unlock(mutex); // desbloqueo mutex
+                pthread_mutex_unlock(mutex);
 
                 for (size_t i = 0; i < strlen(fecha_actual); i++)
                 {
@@ -468,6 +418,7 @@ void muevoSerbo(float grados)
 void controloAlarma(bool estado){
 //    digitalWrite(ALARMA, estado); // Prendo el Led
 }
+
 bool starts_with(const char *str, const char *prefix)
 {
     size_t prefix_len = strlen(prefix);
@@ -510,7 +461,6 @@ int init_shared_resource()
     fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_parameters);
     fprintf(stdout, "Shared memory is created with fd: %d\n", shared_fd_sensor);
 
-    // tamaño exacto de 1 unica estrcutura
     if (ftruncate(shared_fd_parameters, SH_SIZE_PARAMETERS * sizeof(struct parameters)) < 0)
     {
         fprintf(stderr, "ERROR: Truncation failed: %s\n", strerror(errno));
@@ -522,7 +472,6 @@ int init_shared_resource()
         return 1;
     }
 
-    // hace el mapeo de los objetos en RAM
     void *map_parameters = mmap(0, SH_SIZE_PARAMETERS, PROT_WRITE, MAP_SHARED, shared_fd_parameters, 0);
     void *map_sensor = mmap(0, SH_SIZE_SENSOR, PROT_WRITE, MAP_SHARED, shared_fd_sensor, 0);
 
@@ -537,7 +486,6 @@ int init_shared_resource()
         return 1;
     }
 
-    // redirecciona los ptrs a sus correspondientes estructuras
     ptr_parameters = (struct parameters *)map_parameters;
     ptr_sensor = (struct sensor *)map_sensor;
 }
