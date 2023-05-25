@@ -441,27 +441,21 @@ void *monitoreaPulsador()
 {
     *ptr_pulsador = false;
     bool presionado = false;
+    int pulsoViejo = NULL;
     int contador = 0;
     // wiringPiSetupGpio();      // Establezco conexion con los pines
     // pinMode(PULSADOR, INPUT); // Declaro al pin 17 como pin de entrada
+
+    *ptr_pulsador = !*ptr_pulsador;
     while (1)
     {
         // sleep(1);
         //     printf("\n CONFIG %d\n",pulso);
-        //     printf("\n PTR_PULSADOR %d\n",*ptr_pulsador);
-        if (pulso)
-        {
-            presionado = true;
-        }
 
-        if (presionado && !pulso)
+        if (pulsoViejo != pulso)
         {
-            if (contador % 2 == 0)
-            {
-                *ptr_pulsador = !*ptr_pulsador;
-                presionado = false;
-            }
             contador++;
+            pulsoViejo = pulso;
         }
     }
     return NULL;
