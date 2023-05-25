@@ -15,6 +15,7 @@
         "list": "c",
         "random": "c",
         "functional": "c",
-        "streambuf": "c"
+        "streambuf": "c",
+        "semaphore.h": "c"
     }
 }
