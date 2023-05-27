@@ -93,14 +93,14 @@ int main(void)
     pthread_t hilo6; //
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
-    //pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-    //pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
+    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
+    pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
     pthread_create(&hilo4, NULL, activaServomotor, NULL); //
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
     pthread_join(hilo1, NULL);                             //
-    //pthread_join(hilo2, NULL);
-    //pthread_join(hilo3, NULL);
+    pthread_join(hilo2, NULL);
+    pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL); //
     pthread_join(hilo6, NULL);
