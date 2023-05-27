@@ -48,7 +48,9 @@ struct sensor
 ///////////MUTEX//////////////
 // The pointer to shared mutex
 pthread_mutex_t *mutex = NULL;
+pthread_mutex_t *mutex_pulsador = NULL;
 int mutex_shm_fd = -1;
+int mutex_shm_fd_pulsador = -1;
 void init_control_mechanism();
 //////////////////////////////
 
@@ -58,7 +60,7 @@ int shared_fd_sensor = -1;
 int shared_fd_pulsador = -1;
 struct parameters *ptr_parameters = NULL;
 struct sensor *ptr_sensor = NULL;
-bool *ptr_pulsador = NULL;
+bool *ptr_pulsador = false;
 #define SH_SIZE_PARAMETERS 1
 #define SH_SIZE_SENSOR 1
 #define SH_SIZE_PULSADOR 1
@@ -75,6 +77,8 @@ time_t fechaActual();
 void muevoSerbo(float grados);
 void controloAlarma(bool estado);
 char archivoNombre[20] = "riego.config";
+
+int pulso = false;
 
 int main(void)
 {
@@ -98,7 +102,7 @@ int main(void)
     pthread_join(hilo2, NULL);
     pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
-    pthread_join(hilo5, NULL); //
+    pthread_join(hilo5, NULL); 
     pthread_join(hilo6, NULL);
 
     return 0;
@@ -170,6 +174,11 @@ void *lectorDeArchivo()
                 {
                     frecuencia_Actualizacion_Temp_And_Hume_En_Seg = atof(ptr);
                     printf("'%f'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
+                }
+                else if (starts_with(str, "pulsador"))
+                {
+                    pulso = atoi(ptr);
+                    printf("'%d'\n", pulso);
                 }
             }
         }
@@ -314,7 +323,6 @@ void *activaAlarma()
 
 void *activaServomotor()
 {
-
     float grados = 180;
     bool agua = false;
 
@@ -328,27 +336,28 @@ void *activaServomotor()
 
     while (1)
     {
+        pthread_mutex_lock(mutex_pulsador);
         time_t fechaAux = fechaActual();
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
         bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
-
-        if (condicionHoraria || condicionClimatica || ptr_pulsador)
+        
+        if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
             printf("\nsale el agua\n");
             if (agua == false)
             {
                 agua = true;
-                printf("muevo serbo");
+                printf("muevo serbo para que salga agua");
                 muevoSerbo(grados);
             }
         }
 
+        printf("\n SERBO valor %d\n", *ptr_pulsador);
         if (!condicionHoraria)
         {
-            if (condicionClimatica || ptr_pulsador)
+            if (condicionClimatica || *ptr_pulsador)
             {
-                printf("\nsigue saliendo el agua\n");
-                break;
+                printf("\nsigue saliendo el agua aunque no estoy dentro de la flanja horaria establecida\n");
             }
             else
             {
@@ -356,7 +365,7 @@ void *activaServomotor()
                 if (agua == true)
                 {
                     agua = false;
-                    printf("muevo serbo");
+                    printf("muevo serbo praa cerrar el agua");
                     muevoSerbo(grados);
                 }
             }
@@ -432,19 +441,33 @@ void *monitoreaCambiosArchivo()
 
 void *monitoreaPulsador()
 {
-    ptr_pulsador = false;
-    bool presionado = false;
-    wiringPiSetupGpio();      // Establezco conexion con los pines
-    pinMode(PULSADOR, INPUT); // Declaro al pin 17 como pin de entrada
+    *ptr_pulsador = false;
+    bool presionado = true;
+    int pulsoViejo = 0;
+    int contador = 0;
+    // wiringPiSetupGpio();      // Establezco conexion con los pines
+    // pinMode(PULSADOR, INPUT); // Declaro al pin 17 como pin de entrada
+    int aux_pulsador = false;
+
     while (1)
     {
+        // sleep(1);
+        //     printf("\n CONFIG %d\n",pulso);
+        if (pulso != 0)
+        {
+            printf("Primer cambio\n");
 
-        if (digitalRead(PULSADOR))
-            presionado = true;
-        else if(presionado){
-            ptr_pulsador = !ptr_pulsador;
-            presionado = false;
+            while (pulsoViejo != pulso)
+            {
+            }
+
+            printf("Segundo cambio\n");
+            aux_pulsador = !aux_pulsador;
+            printf("El valor del pulsador es : %d", aux_pulsador);
+            *ptr_pulsador = aux_pulsador;
+            pulsoViejo = 0;
         }
+        pthread_mutex_unlock(mutex_pulsador);
     }
     return NULL;
 }
@@ -580,11 +603,19 @@ void init_control_mechanism()
 {
     // Open the mutex shared memory
     mutex_shm_fd = shm_open("/mutex0", O_CREAT | O_RDWR, 0600);
+    mutex_shm_fd_pulsador = shm_open("/mutex1", O_CREAT | O_RDWR, 0600);
     if (mutex_shm_fd < 0)
     {
         fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
         exit(1);
     }
+    
+    if (mutex_shm_fd_pulsador < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
+        exit(1);
+    }
+
     // Allocate and truncate the mutex's shared memory region
     if (ftruncate(mutex_shm_fd, sizeof(pthread_mutex_t)) < 0)
     {
@@ -592,6 +623,13 @@ void init_control_mechanism()
                 strerror(errno));
         exit(1);
     }
+    if (ftruncate(mutex_shm_fd_pulsador, sizeof(pthread_mutex_t)) < 0)
+    {
+        fprintf(stderr, "ERROR: Truncation of mutex failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
     // Map the mutex's shared memory
     void *map = mmap(0, sizeof(pthread_mutex_t),
                      PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd, 0);
@@ -601,16 +639,40 @@ void init_control_mechanism()
                 strerror(errno));
         exit(1);
     }
+
+    // Map the mutex's shared memory
+    void *map_pulsador = mmap(0, sizeof(pthread_mutex_t),
+                     PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd_pulsador, 0);
+    if (map_pulsador == MAP_FAILED)
+    {
+        fprintf(stderr, "ERROR: Mapping failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
     mutex = (pthread_mutex_t *)map;
+    mutex_pulsador = (pthread_mutex_t *)map_pulsador;
+
     // Initialize the mutex object
+    int ret_pulsador = -1;
     int ret = -1;
     pthread_mutexattr_t attr;
+    pthread_mutexattr_t attr_pulsador;
+   
     if ((ret = pthread_mutexattr_init(&attr)))
     {
         fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n",
                 strerror(ret));
         exit(1);
     }
+
+    if ((ret_pulsador = pthread_mutexattr_init(&attr_pulsador)))
+        {
+            fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n",
+                    strerror(ret_pulsador));
+            exit(1);
+        }
+
     if ((ret = pthread_mutexattr_setpshared(&attr,
                                             PTHREAD_PROCESS_SHARED)))
     {
@@ -618,15 +680,38 @@ void init_control_mechanism()
                 strerror(ret));
         exit(1);
     }
+    
+    if ((ret_pulsador = pthread_mutexattr_setpshared(&attr_pulsador,
+                                                PTHREAD_PROCESS_SHARED)))
+        {
+            fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n",
+                    strerror(ret_pulsador));
+            exit(1);
+        }
+
     if ((ret = pthread_mutex_init(mutex, &attr)))
     {
         fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n",
                 strerror(ret));
         exit(1);
     }
+
+    if ((ret_pulsador = pthread_mutex_init(mutex_pulsador, &attr_pulsador)))
+        {
+            fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n",
+                    strerror(ret_pulsador));
+            exit(1);
+        }
+
     if ((ret = pthread_mutexattr_destroy(&attr)))
     {
         fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret));
+        exit(1);
+    }
+
+    if ((ret_pulsador = pthread_mutexattr_destroy(&attr_pulsador)))
+    {
+        fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret_pulsador));
         exit(1);
     }
 }
