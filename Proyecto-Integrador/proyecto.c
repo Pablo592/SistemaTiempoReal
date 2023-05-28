@@ -256,8 +256,6 @@ void *monitoreaSensorHumedadTemperatura()
 
 void *activaAlarma()
 {
-    // wiringPiSetupGpio();  // Establezco conexion con los pines
-    // pinMode(ALARMA, OUTPUT); // Declaro al pin 17 como pin de salida
     bool alarma = false;
     while (1)
     {
@@ -292,14 +290,11 @@ void *activaServomotor()
 {
     float grados = 180;
     bool agua = false;
-
-    /*
+    //configuracion del servomotor
     wiringPiSetup();                // Inicializamos la biblioteca WiringPi
     pinMode(PWM_PIN, PWM_OUTPUT);   // Se establece que el pin sera de salida
     digitalWrite(PWM_PIN, 0);       // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
     softPwmCreate(PWM_PIN, 0, 200); // crea una señal de modulación de ancho de pulso (PWM) impulsada por software en un pin GPIO específico.
-                                    // softPwmCreate(int pin, int initialValue, int pwmRange);
-    */
 
     while (1)
     {
@@ -464,11 +459,10 @@ time_t fechaActual()
 
 void muevoSerbo(float grados)
 {
-    /*
-     float microsegundos;
-     microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
-     softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
-    */
+    float microsegundos;
+    microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
+    softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
+    delay(1000);
 }
 
 void controloAlarma(bool estado)
