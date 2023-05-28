@@ -179,11 +179,6 @@ void *lectorDeArchivo()
                     frecuencia_Actualizacion_Temp_And_Hume_En_Seg = atof(ptr);
                     printf("'%f'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
                 }
-                else if (starts_with(str, "pulsador"))
-                {
-                    pulso = atoi(ptr);
-                    printf("'%d'\n", pulso);
-                }
             }
         }
 
@@ -251,6 +246,7 @@ void *monitoreaSensorHumedadTemperatura()
         }
     }
     close(file);
+
     return NULL;
 }
 
@@ -264,11 +260,11 @@ void *activaAlarma()
 
         if (condicionHoraria)
         {
-            printf("\nSuena el alarma\n");
+            //printf("\nSuena el alarma\n");
             if (alarma == false)
             {
                 alarma = true;
-                printf("prendo el led");
+            //    printf("prendo el led");
                 controloAlarma(alarma);
             }
         }
@@ -277,7 +273,7 @@ void *activaAlarma()
             if (alarma == true)
             {
                 alarma = false;
-                printf("apago el led");
+            //    printf("apago el led");
                 controloAlarma(alarma);
             }
         }
@@ -290,7 +286,7 @@ void *activaServomotor()
 {
     float grados = 180;
     bool agua = false;
-    //configuracion del servomotor
+    // configuracion del servomotor
     wiringPiSetup();                // Inicializamos la biblioteca WiringPi
     pinMode(PWM_PIN, PWM_OUTPUT);   // Se establece que el pin sera de salida
     digitalWrite(PWM_PIN, 0);       // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
@@ -305,39 +301,32 @@ void *activaServomotor()
 
         if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
-            printf("\nsale el agua\n");
+            //printf("\nsale el agua\n");
             if (agua == false)
             {
                 agua = true;
-                printf("muevo serbo para que salga agua");
+            //    printf("muevo serbo para que salga agua");
                 muevoSerbo(grados);
                 controloAlarma(agua); // suena la alarma cuando el pulsador activa la salida del agua
             }
         }
 
-        printf("\n SERBO valor %d\n", *ptr_pulsador);
+        //printf("\n SERBO valor %d\n", *ptr_pulsador);
         if (!condicionHoraria)
         {
-            if (condicionClimatica || *ptr_pulsador)
+            if (condicionClimatica == false || *ptr_pulsador == false)
             {
-                printf("\nsigue saliendo el agua aunque no estoy dentro de la flanja horaria establecida\n");
-            }
-            else
-            {
-                printf("\ncierro el agua\n");
+                //printf("\ncierro el agua\n");
                 if (agua == true)
                 {
                     agua = false;
-                    printf("muevo serbo praa cerrar el agua");
+                    //printf("muevo serbo para cerrar el agua");
                     muevoSerbo(grados);
                     controloAlarma(agua); // apago la alarma cuando el pulsador este desactivado y me cierre la alarma
                 }
             }
         }
-
         sleep(1);
-        // printf("Temperatura: %lf\n", ptr_sensor->temperatura);
-        // printf("Humedad: %lf\n", ptr_sensor->humedad);
     }
     return NULL;
 }
@@ -387,7 +376,7 @@ void *monitoreaCambiosArchivo()
         {
             if (fecha_anterior[i] != fecha_actual[i])
             {
-                printf("Archivo modificado \n");
+                //printf("Archivo modificado \n");
                 pthread_mutex_unlock(mutex); // desbloqueo mutex
 
                 for (size_t i = 0; i < strlen(fecha_actual); i++)
@@ -404,29 +393,28 @@ void *monitoreaCambiosArchivo()
 
 void *monitoreaPulsador()
 {
+    wiringPiSetupGpio();      // Establezco conexion con los pines
+    pinMode(PULSADOR, INPUT); // Declaro al pin 18 como pin de entrada del pulsador
+
     *ptr_pulsador = false;
-    bool presionado = true;
     int pulsoViejo = 0;
-    int contador = 0;
-    // wiringPiSetupGpio();      // Establezco conexion con los pines
-    // pinMode(PULSADOR, INPUT); // Declaro al pin 17 como pin de entrada
     int aux_pulsador = false;
 
     while (1)
     {
-        // sleep(1);
-        //     printf("\n CONFIG %d\n",pulso);
+        pulso = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
+
         if (pulso != 0)
         {
-            printf("Primer cambio\n");
+            //printf("Primer cambio\n");
 
             while (pulsoViejo != pulso)
             {
             }
 
-            printf("Segundo cambio\n");
+            //printf("Segundo cambio\n");
             aux_pulsador = !aux_pulsador;
-            printf("El valor del pulsador es : %d", aux_pulsador);
+            //printf("El valor del pulsador es : %d", aux_pulsador);
             *ptr_pulsador = aux_pulsador;
             pulsoViejo = 0;
         }
@@ -461,7 +449,7 @@ void muevoSerbo(float grados)
 {
     float microsegundos;
     microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
-    softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
+    softPwmWrite(PWM_PIN, (microsegundos));          // Se establece cuanto debe durar la fase de la señal digital
     delay(1000);
 }
 
