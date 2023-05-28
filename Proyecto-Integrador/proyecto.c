@@ -16,16 +16,12 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <sys/stat.h> //para obtener la configuracion del archivo
+
 ///////// PERIFERICOS ////
 #define PWM_PIN 1   // El pin del serbo
 #define ALARMA 17   // El pin del led/alarma
 #define PULSADOR 18 // El pin donde se conecta el PULSADOR
-void *lectorDeArchivo();
-void *monitoreaSensorHumedadTemperatura();
-void *activaAlarma();
-void *activaServomotor();
-void *monitoreaCambiosArchivo();
-void *monitoreaPulsador();
+#define AHT10_ADDRESS 0x38 // AHT10 I2C address
 
 // estructura de variables de riego que se extraen de los archivos
 struct parameters
@@ -37,7 +33,6 @@ struct parameters
     time_t tiempoAnticipacionAlarma;
     time_t duracionMinutosAlarma;
 };
-double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 1;
 
 struct sensor
 {
@@ -46,13 +41,11 @@ struct sensor
 };
 
 ///////////MUTEX//////////////
-// The pointer to shared mutex
-pthread_mutex_t *mutex = NULL;
-pthread_mutex_t *mutex_pulsador = NULL;
+pthread_mutex_t *mutex = NULL;          // READ/WRITE de las variables del archivo
+pthread_mutex_t *mutex_pulsador = NULL; // READ/WRITE del pulsador
 int mutex_shm_fd = -1;
 int mutex_shm_fd_pulsador = -1;
-void init_control_mechanism();
-//////////////////////////////
+void init_control_mechanism();          //configuracion de los mutex
 
 ///////////Shared memory////////
 int shared_fd_parameters = -1;
@@ -65,9 +58,14 @@ bool *ptr_pulsador = false;
 #define SH_SIZE_SENSOR 1
 #define SH_SIZE_PULSADOR 1
 int init_shared_resource();
-///////////////////////////////////////
 
-#define AHT10_ADDRESS 0x38 // AHT10 I2C address
+// Funciones de cada hilo
+void *lectorDeArchivo();
+void *monitoreaSensorHumedadTemperatura();
+void *activaAlarma();
+void *activaServomotor();
+void *monitoreaCambiosArchivo();
+void *monitoreaPulsador();
 
 // AUX FUNCTIONS
 bool starts_with(const char *str, const char *prefix);
@@ -76,8 +74,10 @@ time_t establecerFecha(int hora, int minutos);
 time_t fechaActual();
 void muevoSerbo(float grados);
 void controloAlarma(bool estado);
-char archivoNombre[20] = "riego.config";
 
+//variables globales
+double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 1;
+char archivoNombre[20] = "riego.config";
 int pulso = false;
 
 int main(void)
@@ -92,17 +92,17 @@ int main(void)
     pthread_t hilo5; // Inicializo los hilos
     pthread_t hilo6; //
 
-    pthread_create(&hilo1, NULL, lectorDeArchivo, NULL); //
+    pthread_create(&hilo1, NULL, lectorDeArchivo, NULL);
     pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-    pthread_create(&hilo3, NULL, activaAlarma, NULL);     //
-    pthread_create(&hilo4, NULL, activaServomotor, NULL); //
+    pthread_create(&hilo3, NULL, activaAlarma, NULL);    
+    pthread_create(&hilo4, NULL, activaServomotor, NULL);
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
-    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL); //
-    pthread_join(hilo1, NULL);                             //
+    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
+    pthread_join(hilo1, NULL);                            
     pthread_join(hilo2, NULL);
     pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
-    pthread_join(hilo5, NULL); //
+    pthread_join(hilo5, NULL);
     pthread_join(hilo6, NULL);
 
     return 0;
@@ -246,9 +246,11 @@ void *monitoreaSensorHumedadTemperatura()
         {
             // printf("Has tardado finalmente : %g segundos\n", tiempo);
             gettimeofday(&ti, NULL);
-            FILE *file_pointer;                       // Declaro un puntero que va a ir apuntando al archivo fila por fila
-            char str[150];                            // Declaro una variable que va a contener las filas del archivo
-            file_pointer = fopen(archivoNombre, "r"); // Apunto el puntero al inicio del archivo
+
+            //Aca va el codigo para leer la humedad y temperatura del sensor ya que simulo que lo hago extrayendo estos datos del archivo del .config
+            FILE *file_pointer;
+            char str[150];
+            file_pointer = fopen(archivoNombre, "r");
 
             if (file_pointer == NULL)
             {
@@ -256,17 +258,17 @@ void *monitoreaSensorHumedadTemperatura()
                 exit(1);
             }
 
-            while (fgets(str, 150, file_pointer) != NULL) // Voy recorriendo el archivo fila por fila
+            while (fgets(str, 150, file_pointer) != NULL)
             {
-                if (!starts_with(str, "#")) // Ignoro el instructivo del formato
+                if (!starts_with(str, "#"))
                 {
-                    char *ptr = strtok(str, ":"); // La posicion 0 del split(":")
-                    ptr = strtok(NULL, ":");      // La posicion 1 del split(":")
+                    char *ptr = strtok(str, ":");
+                    ptr = strtok(NULL, ":");
 
-                    if (starts_with(str, "cur_temp")) // Asigno los valores a las variables correspondientes
+                    if (starts_with(str, "cur_temp")) 
                     {
-                        ptr_sensor->temperatura = atof(ptr);       // Parceo de char[] a int y guardo el numero en la estructura alojada en la memoria compartida
-                        printf("'%f'\n", ptr_sensor->temperatura); // Imprimo el valor ajodado en la memoria compartida
+                        ptr_sensor->temperatura = atof(ptr);
+                        printf("'%f'\n", ptr_sensor->temperatura);
                     }
                     else if (starts_with(str, "cur_hum"))
                     {
@@ -280,8 +282,6 @@ void *monitoreaSensorHumedadTemperatura()
         }
     }
 
-    //   close(file);
-
     return NULL;
 }
 
@@ -293,11 +293,11 @@ void *activaAlarma()
     while (1)
     {
         time_t fechaAux = fechaActual();
-        bool condicionHoraria = ((fechaAux >= ptr_parameters->tiempoAnticipacionAlarma) && (fechaAux < ptr_parameters->duracionMinutosAlarma));
+        bool condicionHoraria = ((fechaAux >= ptr_parameters->tiempoAnticipacionAlarma) 
+                                    && (fechaAux < ptr_parameters->duracionMinutosAlarma));
 
         if (condicionHoraria)
         {
-
             printf("\nSuena el alarma\n");
             if (alarma == false)
             {
@@ -340,7 +340,7 @@ void *activaServomotor()
         time_t fechaAux = fechaActual();
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
         bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
-        
+
         if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
             printf("\nsale el agua\n");
@@ -349,6 +349,7 @@ void *activaServomotor()
                 agua = true;
                 printf("muevo serbo para que salga agua");
                 muevoSerbo(grados);
+                controloAlarma(agua);   //suena la alarma cuando el pulsador activa la salida del agua
             }
         }
 
@@ -367,6 +368,7 @@ void *activaServomotor()
                     agua = false;
                     printf("muevo serbo praa cerrar el agua");
                     muevoSerbo(grados);
+                    controloAlarma(agua);   //apago la alarma cuando el pulsador este desactivado y me cierre la alarma
                 }
             }
         }
@@ -415,7 +417,6 @@ void *monitoreaCambiosArchivo()
         // Formatea y muestra la fecha de modificación
         char fecha_actual[50];
         strftime(fecha_actual, sizeof(fecha_actual), "%Y-%m-%d %H:%M:%S", time_info);
-        // printf("La última modificación de %s fue el %s.\n", filename, fecha_actual);
 
         // printf("La última modificación fue el %s.\n", fecha_anterior);
         // printf("La Actual modificación fue el %s.\n", fecha_actual);
@@ -474,6 +475,7 @@ void *monitoreaPulsador()
 
 // https://www.um.es/earlyadopters/actividades/a3/PCD_Activity3_Session1.pdf
 
+//por defecto, levanto la fecha de hoy, pero modifico su hora y minutos
 time_t establecerFecha(int hora, int minutos)
 {
     time_t currentTime;
@@ -516,6 +518,8 @@ bool starts_with(const char *str, const char *prefix)
     return strncmp(str, prefix, prefix_len) == 0;
 }
 
+//compara caracteres de la misma posicion de las cadenas de entrada omitiendo el
+//caracter de fin de linea (\0)
 bool comparaStr(char entrada[], char modelo[])
 {
     int ind = 0;
@@ -531,7 +535,6 @@ bool comparaStr(char entrada[], char modelo[])
 
 int init_shared_resource()
 {
-
     shared_fd_parameters = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
     shared_fd_sensor = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
     shared_fd_pulsador = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
@@ -604,12 +607,13 @@ void init_control_mechanism()
     // Open the mutex shared memory
     mutex_shm_fd = shm_open("/mutex0", O_CREAT | O_RDWR, 0600);
     mutex_shm_fd_pulsador = shm_open("/mutex1", O_CREAT | O_RDWR, 0600);
+
     if (mutex_shm_fd < 0)
     {
         fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
         exit(1);
     }
-    
+
     if (mutex_shm_fd_pulsador < 0)
     {
         fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
@@ -642,7 +646,7 @@ void init_control_mechanism()
 
     // Map the mutex's shared memory
     void *map_pulsador = mmap(0, sizeof(pthread_mutex_t),
-                     PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd_pulsador, 0);
+                              PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd_pulsador, 0);
     if (map_pulsador == MAP_FAILED)
     {
         fprintf(stderr, "ERROR: Mapping failed: %s\n",
@@ -658,50 +662,42 @@ void init_control_mechanism()
     int ret = -1;
     pthread_mutexattr_t attr;
     pthread_mutexattr_t attr_pulsador;
-   
+
     if ((ret = pthread_mutexattr_init(&attr)))
     {
-        fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n",
-                strerror(ret));
+        fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n", strerror(ret));
         exit(1);
     }
 
     if ((ret_pulsador = pthread_mutexattr_init(&attr_pulsador)))
-        {
-            fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n",
-                    strerror(ret_pulsador));
-            exit(1);
-        }
-
-    if ((ret = pthread_mutexattr_setpshared(&attr,
-                                            PTHREAD_PROCESS_SHARED)))
     {
-        fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n",
-                strerror(ret));
+        fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n", strerror(ret_pulsador));
         exit(1);
     }
-    
-    if ((ret_pulsador = pthread_mutexattr_setpshared(&attr_pulsador,
-                                                PTHREAD_PROCESS_SHARED)))
-        {
-            fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n",
-                    strerror(ret_pulsador));
-            exit(1);
-        }
+
+    if ((ret = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED)))
+    {
+        fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n", strerror(ret));
+        exit(1);
+    }
+
+    if ((ret_pulsador = pthread_mutexattr_setpshared(&attr_pulsador, PTHREAD_PROCESS_SHARED)))
+    {
+        fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n", strerror(ret_pulsador));
+        exit(1);
+    }
 
     if ((ret = pthread_mutex_init(mutex, &attr)))
     {
-        fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n",
-                strerror(ret));
+        fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n", strerror(ret));
         exit(1);
     }
 
     if ((ret_pulsador = pthread_mutex_init(mutex_pulsador, &attr_pulsador)))
-        {
-            fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n",
-                    strerror(ret_pulsador));
-            exit(1);
-        }
+    {
+        fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n", strerror(ret_pulsador));
+        exit(1);
+    }
 
     if ((ret = pthread_mutexattr_destroy(&attr)))
     {
