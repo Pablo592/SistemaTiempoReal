@@ -18,10 +18,10 @@
 #include <sys/stat.h> //para obtener la configuracion del archivo
 
 ///////// PERIFERICOS ////
-#define PWM_PIN 1   // El pin del serbo
-#define ALARMA 17   // El pin del led/alarma
-#define PULSADOR 18 // El pin donde se conecta el PULSADOR
-#define AHT10_ADDRESS 0x38 // AHT10 I2C address
+#define PWM_PIN 1          // El pin del serbo
+#define ALARMA 17          // El pin del led/alarma
+#define PULSADOR 18        // El pin donde se conecta el PULSADOR
+#define AHT10_ADDRESS 0x38 // AHT10 I2C address, para sensores de humedad y temperatura
 
 // estructura de variables de riego que se extraen de los archivos
 struct parameters
@@ -45,7 +45,7 @@ pthread_mutex_t *mutex = NULL;          // READ/WRITE de las variables del archi
 pthread_mutex_t *mutex_pulsador = NULL; // READ/WRITE del pulsador
 int mutex_shm_fd = -1;
 int mutex_shm_fd_pulsador = -1;
-void init_control_mechanism();          //configuracion de los mutex
+void init_control_mechanism(); // configuracion de los mutex
 
 ///////////Shared memory////////
 int shared_fd_parameters = -1;
@@ -75,7 +75,7 @@ time_t fechaActual();
 void muevoSerbo(float grados);
 void controloAlarma(bool estado);
 
-//variables globales
+// variables globales
 double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 1;
 char archivoNombre[20] = "riego.config";
 int pulso = false;
@@ -84,8 +84,9 @@ int main(void)
 {
     init_shared_resource();
     init_control_mechanism();
+    init_sensor_humedad_and_temp();
 
-    wiringPiSetupGpio();        // Establezco conexion con los pines
+    wiringPiSetupGpio(); // Establezco conexion con los pines
     pinMode(ALARMA, OUTPUT);
 
     pthread_t hilo1; //
@@ -97,11 +98,11 @@ int main(void)
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL);
     pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-    pthread_create(&hilo3, NULL, activaAlarma, NULL);    
+    pthread_create(&hilo3, NULL, activaAlarma, NULL);
     pthread_create(&hilo4, NULL, activaServomotor, NULL);
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
     pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
-    pthread_join(hilo1, NULL);                            
+    pthread_join(hilo1, NULL);
     pthread_join(hilo2, NULL);
     pthread_join(hilo3, NULL);
     pthread_join(hilo4, NULL);
@@ -204,24 +205,22 @@ void *lectorDeArchivo()
 
 void *monitoreaSensorHumedadTemperatura()
 {
+    int file;
+    char *filename = "/dev/i2c-1";           // I2C bus device file
+    if ((file = open(filename, O_RDWR)) < 0) // Verifico la conexion con la interfaz I2C
+    {
+        printf("Failed to open I2C bus %s\n", filename);
+        exit(1);
+    }
 
-    /*  wiringPiSetupGpio();
-      int file;
-      char *filename = "/dev/i2c-1";           // I2C bus device file
-      if ((file = open(filename, O_RDWR)) < 0) // Verifico la conexion con la interfaz I2C
-      {
-          printf("Failed to open I2C bus %s\n", filename);
-          exit(1);
-      }
+    if (ioctl(file, I2C_SLAVE, AHT10_ADDRESS) < 0) // Verifico la conexion con el sensor AHT10
+    {
+        printf("Failed to select AHT10 sensor\n");
+        exit(1);
+    }
 
-      if (ioctl(file, I2C_SLAVE, AHT10_ADDRESS) < 0) // Verifico la conexion con el sensor AHT10
-      {
-          printf("Failed to select AHT10 sensor\n");
-          exit(1);
-      }
-  */
     // Send command to measure temperature and humidity
-    // char command[3] = {0xAC, 0x33, 0x00}; // Busco en memoria la humedad y temperatura detectada por el sensor
+    char command[3] = {0xAC, 0x33, 0x00}; // Busco en memoria la humedad y temperatura detectada por el sensor
 
     double cur_temp, cur_hum;
     struct timeval ti, tf;
@@ -229,7 +228,16 @@ void *monitoreaSensorHumedadTemperatura()
     gettimeofday(&ti, NULL);
     while (1) // El sensor recopila datos sin parar
     {
-        /*    write(file, command, 3);
+        tiempo = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0;
+        tiempo = tiempo / 1000; // tiempo en segundos
+        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)
+            gettimeofday(&tf, NULL);
+        else
+        {
+            // printf("Has tardado finalmente : %g segundos\n", tiempo);
+            gettimeofday(&ti, NULL);
+
+            write(file, command, 3);
             usleep(50000); // Se espera un tiempo a que las mediciones puedan completarse (50ms)
             char data[6];
             read(file, data, 6);
@@ -240,51 +248,9 @@ void *monitoreaSensorHumedadTemperatura()
             cur_hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
             cur_hum = cur_hum * 100 / 1048576;
             printf("Humidity: %1.f %\n", cur_hum); // Se imprime la humedad monitoreada por consola
-    */
-        tiempo = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0;
-        tiempo = tiempo / 1000; // tiempo en segundos
-        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)
-            gettimeofday(&tf, NULL);
-        else
-        {
-            // printf("Has tardado finalmente : %g segundos\n", tiempo);
-            gettimeofday(&ti, NULL);
-
-            //Aca va el codigo para leer la humedad y temperatura del sensor ya que simulo que lo hago extrayendo estos datos del archivo del .config
-            FILE *file_pointer;
-            char str[150];
-            file_pointer = fopen(archivoNombre, "r");
-
-            if (file_pointer == NULL)
-            {
-                printf("Error opening file!");
-                exit(1);
-            }
-
-            while (fgets(str, 150, file_pointer) != NULL)
-            {
-                if (!starts_with(str, "#"))
-                {
-                    char *ptr = strtok(str, ":");
-                    ptr = strtok(NULL, ":");
-
-                    if (starts_with(str, "cur_temp")) 
-                    {
-                        ptr_sensor->temperatura = atof(ptr);
-                        printf("'%f'\n", ptr_sensor->temperatura);
-                    }
-                    else if (starts_with(str, "cur_hum"))
-                    {
-                        ptr_sensor->humedad = atof(ptr);
-                        printf("'%f'\n", ptr_sensor->humedad);
-                    }
-                }
-            }
-
-            fclose(file_pointer); // Cierro el archivo
         }
     }
-
+    close(file);
     return NULL;
 }
 
@@ -296,8 +262,7 @@ void *activaAlarma()
     while (1)
     {
         time_t fechaAux = fechaActual();
-        bool condicionHoraria = ((fechaAux >= ptr_parameters->tiempoAnticipacionAlarma) 
-                                    && (fechaAux < ptr_parameters->duracionMinutosAlarma));
+        bool condicionHoraria = ((fechaAux >= ptr_parameters->tiempoAnticipacionAlarma) && (fechaAux < ptr_parameters->duracionMinutosAlarma));
 
         if (condicionHoraria)
         {
@@ -320,7 +285,6 @@ void *activaAlarma()
         }
         sleep(1);
     }
-
     return NULL;
 }
 
@@ -352,7 +316,7 @@ void *activaServomotor()
                 agua = true;
                 printf("muevo serbo para que salga agua");
                 muevoSerbo(grados);
-                controloAlarma(agua);   //suena la alarma cuando el pulsador activa la salida del agua
+                controloAlarma(agua); // suena la alarma cuando el pulsador activa la salida del agua
             }
         }
 
@@ -371,7 +335,7 @@ void *activaServomotor()
                     agua = false;
                     printf("muevo serbo praa cerrar el agua");
                     muevoSerbo(grados);
-                    controloAlarma(agua);   //apago la alarma cuando el pulsador este desactivado y me cierre la alarma
+                    controloAlarma(agua); // apago la alarma cuando el pulsador este desactivado y me cierre la alarma
                 }
             }
         }
@@ -478,7 +442,7 @@ void *monitoreaPulsador()
 
 // https://www.um.es/earlyadopters/actividades/a3/PCD_Activity3_Session1.pdf
 
-//por defecto, levanto la fecha de hoy, pero modifico su hora y minutos
+// por defecto, levanto la fecha de hoy, pero modifico su hora y minutos
 time_t establecerFecha(int hora, int minutos)
 {
     time_t currentTime;
@@ -509,7 +473,7 @@ void muevoSerbo(float grados)
 
 void controloAlarma(bool estado)
 {
-    digitalWrite(ALARMA, estado); // Prendo el Led 
+    digitalWrite(ALARMA, estado); // Prendo el Led
 }
 bool starts_with(const char *str, const char *prefix)
 {
@@ -521,8 +485,8 @@ bool starts_with(const char *str, const char *prefix)
     return strncmp(str, prefix, prefix_len) == 0;
 }
 
-//compara caracteres de la misma posicion de las cadenas de entrada omitiendo el
-//caracter de fin de linea (\0)
+// compara caracteres de la misma posicion de las cadenas de entrada omitiendo el
+// caracter de fin de linea (\0)
 bool comparaStr(char entrada[], char modelo[])
 {
     int ind = 0;
