@@ -18,8 +18,8 @@
 #include <sys/stat.h> //para obtener la configuracion del archivo
 
 ///////// PERIFERICOS ////
-#define PWM_PIN 1          // El pin del serbo
-#define ALARMA 17          // El pin del led/alarma
+#define PWM_PIN 32         // El pin del serbo
+#define ALARMA 8         // El pin del led/alarma
 #define PULSADOR 18        // El pin donde se conecta el PULSADOR
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address, para sensores de humedad y temperatura
 
