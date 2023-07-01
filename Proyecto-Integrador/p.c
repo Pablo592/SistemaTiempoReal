@@ -74,8 +74,8 @@ bool starts_with(const char *str, const char *prefix);
 bool comparaStr(char entrada[], char modelo[]);
 time_t establecerFecha(int hora, int minutos);
 time_t fechaActual();
-void abroValvula(float grados);
-void cierroValvula(float grados);
+void abroValvula();
+void cierroValvula();
 void controloAlarma(bool estado);
 
 // variables globales
@@ -290,7 +290,6 @@ void *activaAlarma()
 
 void *activaServomotor()
 {
-    float grados = 180;
     bool agua = false;
     // configuracion del servomotor
     wiringPiSetup();              // Inicializamos la biblioteca WiringPi
@@ -309,27 +308,32 @@ void *activaServomotor()
 
         pthread_mutex_lock(mutex_temp_hum);
 
-        //printf("ptr_sensor->temperatura %2.2f\n", ptr_sensor->temperatura);
-        //printf("ptr_parameters->tempMax %2.2f\n", ptr_parameters->tempMax);
-        //printf("ptr_sensor->humedad %2.2f\n", ptr_sensor->humedad);
-        //printf("ptr_parameters->humMin %2.2f\n", ptr_parameters->humMin);
+        // printf("ptr_sensor->temperatura %2.2f\n", ptr_sensor->temperatura);
+        // printf("ptr_parameters->tempMax %2.2f\n", ptr_parameters->tempMax);
+        // printf("ptr_sensor->humedad %2.2f\n", ptr_sensor->humedad);
+        // printf("ptr_parameters->humMin %2.2f\n", ptr_parameters->humMin);
 
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
-        bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
+        bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) || (ptr_sensor->humedad < ptr_parameters->humMin));
 
         // printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
         //
-        //printf("Horario %d && %d \n", fechaAux >= ptr_parameters->horaRiego, fechaAux < ptr_parameters->duracionMinutosRiego);
-        //printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
+        // printf("Horario %d && %d \n", fechaAux >= ptr_parameters->horaRiego, fechaAux < ptr_parameters->duracionMinutosRiego);
+        // printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
 
-        if (condicionHoraria || condicionClimatica || *ptr_pulsador)
+        printf("condicionHoraria %d \n", condicionHoraria);
+        printf("condicionClimatica %d \n", condicionClimatica);
+        printf("*ptr_pulsador %d \n", *ptr_pulsador);
+        printf("agua %d \n", agua);
+
+        if ((condicionHoraria || condicionClimatica || *ptr_pulsador))
         {
             // printf("\nsale el agua\n");
             if (agua == false)
             {
                 agua = true;
                 //    printf("muevo serbo para que salga agua");
-                abroValvula(grados);
+                abroValvula();
                 controloAlarma(agua); // suena la alarma cuando el pulsador activa la salida del agua
             }
         }
@@ -337,14 +341,15 @@ void *activaServomotor()
         // printf("\n SERBO valor %d\n", *ptr_pulsador);
         if (!condicionHoraria)
         {
-            if (condicionClimatica == false || *ptr_pulsador == false)
+            if ((condicionClimatica == false) && (*ptr_pulsador == false))
             {
                 printf("\ncierro el agua\n");
                 if (agua == true)
                 {
+                    printf("%d \n", *ptr_pulsador);
                     agua = false;
                     // printf("muevo serbo para cerrar el agua");
-                    cierroValvula(grados);
+                    cierroValvula();
                     controloAlarma(agua); // apago la alarma cuando el pulsador este desactivado y me cierre la alarma
                 }
             }
@@ -426,11 +431,11 @@ void *monitoreaPulsador()
     while (1)
     {
         pulso = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
-        //printf("El pulso es: %d \n", pulso);
+        // printf("El pulso es: %d \n", pulso);
 
         if (pulso != 0)
         {
-           // printf("Primer cambio\n");
+            // printf("Primer cambio\n");
 
             while (0 != pulso)
             {
@@ -474,7 +479,7 @@ time_t fechaActual()
     return mktime(localTime);
 }
 
-void abroValvula(float grados)
+void abroValvula()
 {
     printf("abroValvula-->    Seerbo \n");
     for (int intensity = 0; intensity < 1024; ++intensity)
@@ -484,7 +489,7 @@ void abroValvula(float grados)
     }
 }
 
-void cierroValvula(float grados)
+void cierroValvula()
 {
     printf("cierroValvula-->    Seerbo \n");
     for (int intensity = 1023; intensity >= 0; --intensity)
