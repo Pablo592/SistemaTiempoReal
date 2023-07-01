@@ -1,33 +1,33 @@
-#include <stdio.h>
 #include <wiringPi.h>
-#include <softPwm.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define PWM_PIN 1 // Definimos el pin de salida que se utilizará para la señal PWM
+const int PWM_pin = 1;   /* GPIO 1 as per WiringPi, GPIO18 as per BCM */
 
-
-int main(void)
+int main (void)
 {
+  int intensity ;            
 
-    float grados;
-    grados = 0;
-   
-    wiringPiSetup();     // Inicializamos la biblioteca WiringPi
-    pinMode(PWM_PIN, PWM_OUTPUT); // Se establece que el pin sera de salida
-    digitalWrite(PWM_PIN, 0);  // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
-    softPwmCreate(PWM_PIN, 0, 200); // crea una señal de modulación de ancho de pulso (PWM) impulsada por software en un pin GPIO específico. 
-                                    //softPwmCreate(int pin, int initialValue, int pwmRange);
-   
-    float microsegundos;
+  if (wiringPiSetup () == -1)
+    exit (1) ;
 
-    while (1)
+  pinMode (PWM_pin, PWM_OUTPUT) ; /* set PWM pin as output */
+
+  while (1)
+  {
+	//abrir valvula
+    for (intensity = 0 ; intensity < 1024 ; ++intensity)
     {
-        printf("Incerte la cantidad de grados que debe girar el servo \n");
-        scanf("%f", &grados);
-        microsegundos = (((1 / 180) * grados) + 1) * 10;    //Se hace la conversion de grados a milisegundos
-        printf("microsegundos %f\n", microsegundos);
-        softPwmWrite(PWM_PIN, (microsegundos)); // Se establece cuanto debe durar la fase de la señal digital
-        delay(1000);
+      pwmWrite (PWM_pin, intensity) ;	/* provide PWM value for duty cycle */
+      delay (1) ;
     }
-
-    return 0;
+    delay(1);
+    //cerrar valvula
+    for (intensity = 1023 ; intensity >= 0 ; --intensity)
+    {
+      pwmWrite (PWM_pin, intensity) ;
+      delay (1) ;
+    }
+    delay(1);
+}
 }

@@ -2,7 +2,7 @@
 #include <stdio.h>    // Inicializo libreria para imprimir por pantalla
 #include <time.h>     // Inicializo libreria para calcular los tiempos
 
-#define LED 17 // El pin donde se conecta el Led
+#define LED 5 // El pin donde se conecta el Led
 
 int main(void)
 {

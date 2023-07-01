@@ -18,7 +18,7 @@
 #include <sys/stat.h>
 
 ///////// PERIFERICOS ////
-#define PWM_PIN 12         // El pin del serbo
+#define PWM_PIN 33         // El pin del serbo
 #define ALARMA 5         // El pin del led/alarma
 #define PULSADOR 18        // El pin donde se conecta el PULSADOR
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address, para sensores de humedad y temperatura
@@ -76,7 +76,7 @@ void muevoSerbo(float grados);
 void controloAlarma(bool estado);
 
 // variables globales
-double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 0;
+double frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 1;
 char archivoNombre[20] = "riego.config";
 int pulso = false;
 
@@ -96,13 +96,13 @@ int main(void)
     pthread_t hilo6;
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL);
-//    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
+    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
 //    pthread_create(&hilo3, NULL, activaAlarma, NULL);
 //    pthread_create(&hilo4, NULL, activaServomotor, NULL);
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
 //    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
     pthread_join(hilo1, NULL);
-//    pthread_join(hilo2, NULL);
+    pthread_join(hilo2, NULL);
 //    pthread_join(hilo3, NULL);
 //    pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL);
@@ -176,7 +176,7 @@ void *lectorDeArchivo()
                 else if (starts_with(str, "Frecuencia_Actualizacion_Temp_And_Hume_En_Seg"))
                 {
                     frecuencia_Actualizacion_Temp_And_Hume_En_Seg = atof(ptr);
-                    printf("'%d'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
+                    printf("'%f'\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
                 }
             }
         }
@@ -186,12 +186,12 @@ void *lectorDeArchivo()
         ptr_parameters->tiempoAnticipacionAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma);
         ptr_parameters->duracionMinutosAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma + (duracionMinutosAlarma == 0 ? tiempoAnticipacionAlarma : duracionMinutosAlarma));
         
-        printf("La frecuencia de lectura del sensor de humedad y temperatura es: %d",frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
+
         printf("Horario de riego: %s", ctime(&ptr_parameters->horaRiego));
         printf("Duracion de riego: %s", ctime(&ptr_parameters->duracionMinutosRiego));
         printf("Horario de alarma: %s", ctime(&ptr_parameters->tiempoAnticipacionAlarma));
         printf("Duracion de alarma: %s", ctime(&ptr_parameters->duracionMinutosAlarma));
-        
+       
         fclose(file_pointer); // Cierro el archivo
     }
     return NULL;
@@ -220,21 +220,15 @@ void *monitoreaSensorHumedadTemperatura()
     struct timeval ti, tf;
     double tiempo;
     gettimeofday(&ti, NULL);
-    frecuencia_Actualizacion_Temp_And_Hume_En_Seg = 60;
-    printf("frecuencia de actualizacion de sensor de temp y humedad 1 : %d\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
     while (1) // El sensor recopila datos sin parar
     {
         tiempo = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0;
         tiempo = tiempo / 1000; // tiempo en segundos
-        printf("Tiempo : %g segundos\n", tiempo);
-        printf("frecuencia de actualizacion de sensor de temp y humedad 2 : %d\n", frecuencia_Actualizacion_Temp_And_Hume_En_Seg);
-        /*if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg){    //pòr defecto es la lectura cada 1 segundo
+        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)    //pòr defecto es la lectura cada 1 segundo
             gettimeofday(&tf, NULL);
-            printf("Has tardado finalmente dentro del bucle : %g segundos\n", tiempo);
-        }
         else
         {
-            printf("Has tardado finalmente : %g segundos\n", tiempo);
+            // printf("Has tardado finalmente : %g segundos\n", tiempo);
             gettimeofday(&ti, NULL);
 
             write(file, command, 3);
@@ -243,13 +237,12 @@ void *monitoreaSensorHumedadTemperatura()
             read(file, data, 6);
 
             cur_temp = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]);
-            cur_temp = ((cur_temp * 200) / 1048576) - 50;a));
-        printf("La frecuencia de
+            cur_temp = ((cur_temp * 200) / 1048576) - 50;
             printf("Temperature: %2.2f\n", cur_temp); // Se imprime la temperatura monitoreada por consola
             cur_hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
             cur_hum = cur_hum * 100 / 1048576;
             printf("Humidity: %1.f %\n", cur_hum); // Se imprime la humedad monitoreada por consola
-        }*/
+        }
     }
     close(file);
 
