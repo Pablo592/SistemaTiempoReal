@@ -309,18 +309,18 @@ void *activaServomotor()
 
         pthread_mutex_lock(mutex_temp_hum);
 
-        printf("ptr_sensor->temperatura %2.2f\n", ptr_sensor->temperatura);
-        printf("ptr_parameters->tempMax %2.2f\n", ptr_parameters->tempMax);
-        printf("ptr_sensor->humedad %2.2f\n", ptr_sensor->humedad);
-        printf("ptr_parameters->humMin %2.2f\n", ptr_parameters->humMin);
+        //printf("ptr_sensor->temperatura %2.2f\n", ptr_sensor->temperatura);
+        //printf("ptr_parameters->tempMax %2.2f\n", ptr_parameters->tempMax);
+        //printf("ptr_sensor->humedad %2.2f\n", ptr_sensor->humedad);
+        //printf("ptr_parameters->humMin %2.2f\n", ptr_parameters->humMin);
 
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
         bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
 
         // printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
         //
-        printf("Horario %d && %d \n", fechaAux >= ptr_parameters->horaRiego, fechaAux < ptr_parameters->duracionMinutosRiego);
-        printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
+        //printf("Horario %d && %d \n", fechaAux >= ptr_parameters->horaRiego, fechaAux < ptr_parameters->duracionMinutosRiego);
+        //printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
 
         if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
@@ -339,7 +339,7 @@ void *activaServomotor()
         {
             if (condicionClimatica == false || *ptr_pulsador == false)
             {
-                // printf("\ncierro el agua\n");
+                printf("\ncierro el agua\n");
                 if (agua == true)
                 {
                     agua = false;
@@ -426,7 +426,7 @@ void *monitoreaPulsador()
     while (1)
     {
         pulso = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
-        printf("El pulso es: %d \n", pulso);
+        //printf("El pulso es: %d \n", pulso);
 
         if (pulso != 0)
         {
@@ -441,6 +441,10 @@ void *monitoreaPulsador()
             aux_pulsador = !aux_pulsador;
             // printf("El valor del pulsador es : %d", aux_pulsador);
             *ptr_pulsador = aux_pulsador;
+            if (*ptr_pulsador)
+                printf("\n Abroooooooooo el agua\n");
+            else
+                printf("\n Cierrroooooooo el agua\n");
             // pulsoViejo = 0;
         }
         // pthread_mutex_unlock(mutex_pulsador);
