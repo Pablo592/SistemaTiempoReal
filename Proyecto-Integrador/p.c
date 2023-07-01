@@ -15,11 +15,11 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
+#include <sys/stat.h> //para obtener la configuracion del archivo
 
 ///////// PERIFERICOS ////
-#define PWM_PIN 33         // El pin del serbo
-#define ALARMA 5         // El pin del led/alarma
+#define PWM_PIN 26         // El pin del serbo
+#define ALARMA 5           // El pin del led/alarma
 #define PULSADOR 18        // El pin donde se conecta el PULSADOR
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address, para sensores de humedad y temperatura
 
@@ -43,8 +43,10 @@ struct sensor
 ///////////MUTEX//////////////
 pthread_mutex_t *mutex = NULL;          // READ/WRITE de las variables del archivo
 pthread_mutex_t *mutex_pulsador = NULL; // READ/WRITE del pulsador
+pthread_mutex_t *mutex_temp_hum = NULL;
 int mutex_shm_fd = -1;
 int mutex_shm_fd_pulsador = -1;
+int mutex_shm_fd_temp_hum = -1;
 void init_control_mechanism(); // configuracion de los mutex
 
 ///////////Shared memory////////
@@ -72,7 +74,8 @@ bool starts_with(const char *str, const char *prefix);
 bool comparaStr(char entrada[], char modelo[]);
 time_t establecerFecha(int hora, int minutos);
 time_t fechaActual();
-void muevoSerbo(float grados);
+void abroValvula(float grados);
+void cierroValvula(float grados);
 void controloAlarma(bool estado);
 
 // variables globales
@@ -84,29 +87,30 @@ int main(void)
 {
     init_shared_resource();
     init_control_mechanism();
+    // init_sensor_humedad_and_temp();
 
     wiringPiSetupGpio(); // Establezco conexion con los pines
     pinMode(ALARMA, OUTPUT);
 
-    pthread_t hilo1;
-    pthread_t hilo2;
-    pthread_t hilo3;
-    pthread_t hilo4;
-    pthread_t hilo5;
-    pthread_t hilo6;
+    pthread_t hilo1; //
+    pthread_t hilo2; // Inicializo los hilos
+    pthread_t hilo3; //
+    pthread_t hilo4; //
+    pthread_t hilo5; // Inicializo los hilos
+    pthread_t hilo6; //
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL);
     pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
-//    pthread_create(&hilo3, NULL, activaAlarma, NULL);
-//    pthread_create(&hilo4, NULL, activaServomotor, NULL);
+    pthread_create(&hilo3, NULL, activaAlarma, NULL);
+    pthread_create(&hilo4, NULL, activaServomotor, NULL);
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
-//    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
+    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
     pthread_join(hilo1, NULL);
     pthread_join(hilo2, NULL);
-//    pthread_join(hilo3, NULL);
-//    pthread_join(hilo4, NULL);
+    pthread_join(hilo3, NULL);
+    pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL);
-//    pthread_join(hilo6, NULL);
+    pthread_join(hilo6, NULL);
 
     return 0;
 }
@@ -185,13 +189,13 @@ void *lectorDeArchivo()
         ptr_parameters->duracionMinutosRiego = establecerFecha(horaRiego, minutoRiego + duracionMinutosRiego);
         ptr_parameters->tiempoAnticipacionAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma);
         ptr_parameters->duracionMinutosAlarma = establecerFecha(horaRiego, minutoRiego - tiempoAnticipacionAlarma + (duracionMinutosAlarma == 0 ? tiempoAnticipacionAlarma : duracionMinutosAlarma));
-        
 
         printf("Horario de riego: %s", ctime(&ptr_parameters->horaRiego));
         printf("Duracion de riego: %s", ctime(&ptr_parameters->duracionMinutosRiego));
+
         printf("Horario de alarma: %s", ctime(&ptr_parameters->tiempoAnticipacionAlarma));
         printf("Duracion de alarma: %s", ctime(&ptr_parameters->duracionMinutosAlarma));
-       
+
         fclose(file_pointer); // Cierro el archivo
     }
     return NULL;
@@ -224,7 +228,7 @@ void *monitoreaSensorHumedadTemperatura()
     {
         tiempo = (tf.tv_sec - ti.tv_sec) * 1000 + (tf.tv_usec - ti.tv_usec) / 1000.0;
         tiempo = tiempo / 1000; // tiempo en segundos
-        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)    //pòr defecto es la lectura cada 1 segundo
+        if (tiempo <= frecuencia_Actualizacion_Temp_And_Hume_En_Seg)
             gettimeofday(&tf, NULL);
         else
         {
@@ -238,11 +242,14 @@ void *monitoreaSensorHumedadTemperatura()
 
             cur_temp = (((data[3] & 0x0F) << 16) | (data[4] << 8) | data[5]);
             cur_temp = ((cur_temp * 200) / 1048576) - 50;
-            printf("Temperature: %2.2f\n", cur_temp); // Se imprime la temperatura monitoreada por consola
+            ptr_sensor->temperatura = cur_temp;
+            printf("Temperature: %2.2f\n", ptr_sensor->temperatura); // Se imprime la temperatura monitoreada por consola
             cur_hum = ((data[1] << 16) | (data[2] << 8) | data[3]) >> 4;
             cur_hum = cur_hum * 100 / 1048576;
-            printf("Humidity: %1.f %\n", cur_hum); // Se imprime la humedad monitoreada por consola
+            ptr_sensor->humedad = cur_hum;
+            printf("Humidity: %1.f %\n", ptr_sensor->humedad); // Se imprime la humedad monitoreada por consola
         }
+        pthread_mutex_unlock(mutex_temp_hum); // desbloqueo mutex
     }
     close(file);
 
@@ -259,11 +266,11 @@ void *activaAlarma()
 
         if (condicionHoraria)
         {
-            //printf("\nSuena el alarma\n");
+            // printf("\nSuena el alarma\n");
             if (alarma == false)
             {
                 alarma = true;
-            //    printf("prendo el led");
+                //    printf("prendo el led");
                 controloAlarma(alarma);
             }
         }
@@ -272,7 +279,7 @@ void *activaAlarma()
             if (alarma == true)
             {
                 alarma = false;
-            //    printf("apago el led");
+                //    printf("apago el led");
                 controloAlarma(alarma);
             }
         }
@@ -286,45 +293,58 @@ void *activaServomotor()
     float grados = 180;
     bool agua = false;
     // configuracion del servomotor
-    wiringPiSetup();                // Inicializamos la biblioteca WiringPi
-    pinMode(PWM_PIN, PWM_OUTPUT);   // Se establece que el pin sera de salida
-    digitalWrite(PWM_PIN, 0);       // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
-    softPwmCreate(PWM_PIN, 0, 200); // crea una señal de modulación de ancho de pulso (PWM) impulsada por software en un pin GPIO específico.
+    wiringPiSetup();              // Inicializamos la biblioteca WiringPi
+    pinMode(PWM_PIN, PWM_OUTPUT); // Se establece que el pin sera de salida
+    // digitalWrite(PWM_PIN, 0);       // Se utiliza para escribir un valor digital (ALTO o BAJO) en el pin de la raspberry
+    // softPwmCreate(PWM_PIN, 0, 200); // crea una señal de modulación de ancho de pulso (PWM) impulsada por software en un pin GPIO específico.
 
     while (1)
     {
-        //pthread_mutex_lock(mutex_pulsador);
+        // pthread_mutex_lock(mutex_pulsador);
         time_t fechaAux = fechaActual();
+
+        // printf("fechaActual %s\n", fechaAux);
+        // printf("ptr_parameters->horaRiego %s\n", ptr_parameters->horaRiego);
+        // printf("ptr_parameters->duracionMinutosRiego %s\n", ptr_parameters->duracionMinutosRiego);
+
+        pthread_mutex_lock(mutex_temp_hum);
+
+        printf("ptr_sensor->temperatura %2.2f\n", ptr_sensor->temperatura);
+        printf("ptr_parameters->tempMax %2.2f\n", ptr_parameters->tempMax);
+        printf("ptr_sensor->humedad %2.2f\n", ptr_sensor->humedad);
+        printf("ptr_parameters->humMin %2.2f\n", ptr_parameters->humMin);
+
         bool condicionHoraria = ((fechaAux >= ptr_parameters->horaRiego) && (fechaAux < ptr_parameters->duracionMinutosRiego));
         bool condicionClimatica = ((ptr_sensor->temperatura > ptr_parameters->tempMax) && (ptr_sensor->humedad < ptr_parameters->humMin));
 
-        muevoSerbo(180);
-        controloAlarma(1); // suena la alarma cuando el pulsador activa la salida del agua
-            
+        // printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
+        //
+        printf("Horario %d && %d \n", fechaAux >= ptr_parameters->horaRiego, fechaAux < ptr_parameters->duracionMinutosRiego);
+        printf("Climatico %d && %d \n", ptr_sensor->temperatura > ptr_parameters->tempMax, ptr_sensor->humedad < ptr_parameters->humMin);
 
         if (condicionHoraria || condicionClimatica || *ptr_pulsador)
         {
-            //printf("\nsale el agua\n");
+            // printf("\nsale el agua\n");
             if (agua == false)
             {
                 agua = true;
-            //    printf("muevo serbo para que salga agua");
-                muevoSerbo(grados);
+                //    printf("muevo serbo para que salga agua");
+                abroValvula(grados);
                 controloAlarma(agua); // suena la alarma cuando el pulsador activa la salida del agua
             }
         }
 
-        //printf("\n SERBO valor %d\n", *ptr_pulsador);
+        // printf("\n SERBO valor %d\n", *ptr_pulsador);
         if (!condicionHoraria)
         {
             if (condicionClimatica == false || *ptr_pulsador == false)
             {
-                //printf("\ncierro el agua\n");
+                // printf("\ncierro el agua\n");
                 if (agua == true)
                 {
                     agua = false;
-                    //printf("muevo serbo para cerrar el agua");
-                    muevoSerbo(grados);
+                    // printf("muevo serbo para cerrar el agua");
+                    cierroValvula(grados);
                     controloAlarma(agua); // apago la alarma cuando el pulsador este desactivado y me cierre la alarma
                 }
             }
@@ -379,7 +399,7 @@ void *monitoreaCambiosArchivo()
         {
             if (fecha_anterior[i] != fecha_actual[i])
             {
-                //printf("Archivo modificado \n");
+                // printf("Archivo modificado \n");
                 pthread_mutex_unlock(mutex); // desbloqueo mutex
 
                 for (size_t i = 0; i < strlen(fecha_actual); i++)
@@ -396,32 +416,34 @@ void *monitoreaCambiosArchivo()
 
 void *monitoreaPulsador()
 {
-    //wiringPiSetupGpio();      // Establezco conexion con los pines
+    wiringPiSetupGpio();      // Establezco conexion con los pines
     pinMode(PULSADOR, INPUT); // Declaro al pin 18 como pin de entrada del pulsador
 
     *ptr_pulsador = false;
-    int pulsoViejo = 0;
+    //  int pulsoViejo = 0;
     int aux_pulsador = false;
 
     while (1)
     {
         pulso = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
-        printf("el pulso es: %d",pulso);
+        printf("El pulso es: %d \n", pulso);
+
         if (pulso != 0)
         {
-            //printf("Primer cambio\n");
+           // printf("Primer cambio\n");
 
-            while (pulsoViejo != pulso)
+            while (0 != pulso)
             {
+                pulso = digitalRead(PULSADOR); // en 1 esta prendido, en 0 esta apagado
             }
 
-            //printf("Segundo cambio\n");
+            // printf("Segundo cambio\n");
             aux_pulsador = !aux_pulsador;
-            //printf("El valor del pulsador es : %d", aux_pulsador);
+            // printf("El valor del pulsador es : %d", aux_pulsador);
             *ptr_pulsador = aux_pulsador;
-            pulsoViejo = 0;
+            // pulsoViejo = 0;
         }
-        pthread_mutex_unlock(mutex_pulsador);
+        // pthread_mutex_unlock(mutex_pulsador);
     }
     return NULL;
 }
@@ -448,12 +470,24 @@ time_t fechaActual()
     return mktime(localTime);
 }
 
-void muevoSerbo(float grados)
+void abroValvula(float grados)
 {
-    float microsegundos;
-    microsegundos = (((1 / 180) * grados) + 1) * 10; // Se hace la conversion de grados a milisegundos
-    softPwmWrite(PWM_PIN, (microsegundos));          // Se establece cuanto debe durar la fase de la señal digital
-    //delay(1000);
+    printf("abroValvula-->    Seerbo \n");
+    for (int intensity = 0; intensity < 1024; ++intensity)
+    {
+        pwmWrite(PWM_PIN, intensity); /* provide PWM value for duty cycle */
+        delay(1);
+    }
+}
+
+void cierroValvula(float grados)
+{
+    printf("cierroValvula-->    Seerbo \n");
+    for (int intensity = 1023; intensity >= 0; --intensity)
+    {
+        pwmWrite(PWM_PIN, intensity);
+        delay(1);
+    }
 }
 
 void controloAlarma(bool estado)
@@ -488,8 +522,8 @@ bool comparaStr(char entrada[], char modelo[])
 int init_shared_resource()
 {
     shared_fd_parameters = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
-    shared_fd_sensor = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
-    shared_fd_pulsador = shm_open("/shm1", O_CREAT | O_RDWR, 0600);
+    shared_fd_sensor = shm_open("/shm2", O_CREAT | O_RDWR, 0600);
+    shared_fd_pulsador = shm_open("/shm3", O_CREAT | O_RDWR, 0600);
 
     if (shared_fd_parameters < 0)
     {
@@ -559,16 +593,23 @@ void init_control_mechanism()
     // Open the mutex shared memory
     mutex_shm_fd = shm_open("/mutex0", O_CREAT | O_RDWR, 0600);
     mutex_shm_fd_pulsador = shm_open("/mutex1", O_CREAT | O_RDWR, 0600);
+    mutex_shm_fd_temp_hum = shm_open("/mutex2", O_CREAT | O_RDWR, 0600);
 
     if (mutex_shm_fd < 0)
     {
-        fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR: Failed to create shared memory mutex_shm_fd: %s\n", strerror(errno));
         exit(1);
     }
 
     if (mutex_shm_fd_pulsador < 0)
     {
-        fprintf(stderr, "ERROR: Failed to create shared memory: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR: Failed to create shared memory mutex_shm_fd_pulsador: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    if (mutex_shm_fd_temp_hum < 0)
+    {
+        fprintf(stderr, "ERROR: Failed to create shared memory mutex_shm_fd_temp_hum: %s\n", strerror(errno));
         exit(1);
     }
 
@@ -580,6 +621,13 @@ void init_control_mechanism()
         exit(1);
     }
     if (ftruncate(mutex_shm_fd_pulsador, sizeof(pthread_mutex_t)) < 0)
+    {
+        fprintf(stderr, "ERROR: Truncation of mutex failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+    if (ftruncate(mutex_shm_fd_temp_hum, sizeof(pthread_mutex_t)) < 0)
     {
         fprintf(stderr, "ERROR: Truncation of mutex failed: %s\n",
                 strerror(errno));
@@ -606,14 +654,27 @@ void init_control_mechanism()
         exit(1);
     }
 
+    // Map the mutex's shared memory
+    void *map_temp_hum = mmap(0, sizeof(pthread_mutex_t),
+                              PROT_READ | PROT_WRITE, MAP_SHARED, mutex_shm_fd_temp_hum, 0);
+    if (map_temp_hum == MAP_FAILED)
+    {
+        fprintf(stderr, "ERROR: Mapping failed: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
     mutex = (pthread_mutex_t *)map;
     mutex_pulsador = (pthread_mutex_t *)map_pulsador;
+    mutex_temp_hum = (pthread_mutex_t *)map_temp_hum;
 
     // Initialize the mutex object
     int ret_pulsador = -1;
     int ret = -1;
+    int ret_temp_hum = -1;
     pthread_mutexattr_t attr;
     pthread_mutexattr_t attr_pulsador;
+    pthread_mutexattr_t attr_temp_hum;
 
     if ((ret = pthread_mutexattr_init(&attr)))
     {
@@ -624,6 +685,12 @@ void init_control_mechanism()
     if ((ret_pulsador = pthread_mutexattr_init(&attr_pulsador)))
     {
         fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n", strerror(ret_pulsador));
+        exit(1);
+    }
+
+    if ((ret_temp_hum = pthread_mutexattr_init(&attr_temp_hum)))
+    {
+        fprintf(stderr, "ERROR: Failed to init mutex attrs: %s\n", strerror(ret_temp_hum));
         exit(1);
     }
 
@@ -639,6 +706,15 @@ void init_control_mechanism()
         exit(1);
     }
 
+    ////////////////////7
+    if ((ret_temp_hum = pthread_mutexattr_setpshared(&attr_temp_hum, PTHREAD_PROCESS_SHARED)))
+    {
+        fprintf(stderr, "ERROR: Failed to set the mutex attr: %s\n", strerror(ret_temp_hum));
+        exit(1);
+    }
+
+    ////////////////////////7
+
     if ((ret = pthread_mutex_init(mutex, &attr)))
     {
         fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n", strerror(ret));
@@ -651,6 +727,14 @@ void init_control_mechanism()
         exit(1);
     }
 
+    //////////////////////////7
+    if ((ret_temp_hum = pthread_mutex_init(mutex_temp_hum, &attr_temp_hum)))
+    {
+        fprintf(stderr, "ERROR: Initializing the mutex failed: %s\n", strerror(ret_temp_hum));
+        exit(1);
+    }
+    ////////////////////////////
+
     if ((ret = pthread_mutexattr_destroy(&attr)))
     {
         fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret));
@@ -662,4 +746,12 @@ void init_control_mechanism()
         fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret_pulsador));
         exit(1);
     }
+
+    ///////////////////////////////
+    if ((ret_temp_hum = pthread_mutexattr_destroy(&attr_temp_hum)))
+    {
+        fprintf(stderr, "ERROR: Failed to destroy mutex attrs : %s\n", strerror(ret_temp_hum));
+        exit(1);
+    }
+    ///////////////////////////////////////
 }

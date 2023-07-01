@@ -18,7 +18,7 @@
 #include <sys/stat.h>
 
 ///////// PERIFERICOS ////
-#define PWM_PIN 12         // El pin del serbo
+#define PWM_PIN 26         // El pin del serbo
 #define ALARMA 5         // El pin del led/alarma
 #define PULSADOR 18        // El pin donde se conecta el PULSADOR
 #define AHT10_ADDRESS 0x38 // AHT10 I2C address, para sensores de humedad y temperatura
@@ -96,13 +96,13 @@ int main(void)
     pthread_t hilo6;
 
     pthread_create(&hilo1, NULL, lectorDeArchivo, NULL);
-//    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
+    pthread_create(&hilo2, NULL, monitoreaSensorHumedadTemperatura, NULL);
 //    pthread_create(&hilo3, NULL, activaAlarma, NULL);
 //    pthread_create(&hilo4, NULL, activaServomotor, NULL);
     pthread_create(&hilo5, NULL, monitoreaCambiosArchivo, NULL);
 //    pthread_create(&hilo6, NULL, monitoreaPulsador, NULL);
     pthread_join(hilo1, NULL);
-//    pthread_join(hilo2, NULL);
+    pthread_join(hilo2, NULL);
 //    pthread_join(hilo3, NULL);
 //    pthread_join(hilo4, NULL);
     pthread_join(hilo5, NULL);
